@@ -1,0 +1,18 @@
+scrape_interval: 1s
+collectors:
+  cpu: true
+  memory: true
+  io: true
+  cache: true
+exporters:
+  prometheus:
+    port: 9102
+  logging:
+    level: info
+filters:
+  include_tools:
+    - cmake
+    - ninja
+    - mvn
+    - gradle
+    - pytest

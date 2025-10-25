@@ -1,0 +1,130 @@
+╔══════════════════════════════════════════════════════════════════════╗
+║                    InfraMind Quick Start                             ║
+║           CI/CD Optimization with Machine Learning                  ║
+╚══════════════════════════════════════════════════════════════════════╝
+
+📦 PREREQUISITES
+  • Docker & Docker Compose
+  • 8GB RAM minimum
+  • 10GB disk space
+
+🚀 START IN 3 COMMANDS
+
+  1. Start services:
+     $ make up
+
+  2. Seed demo data:
+     $ make seed-demo
+     (Generates 50 builds + trains ML model - takes ~2 min)
+
+  3. Open dashboards:
+     • API:     http://localhost:8080/docs
+     • Grafana: http://localhost:3000 (admin/admin)
+
+🧪 TEST OPTIMIZATION
+
+  $ curl -X POST http://localhost:8080/optimize \
+      -H "Content-Type: application/json" \
+      -H "X-IM-Token: dev-key-change-in-production" \
+      -d '{
+        "pipeline": "demo/example-app",
+        "context": {
+          "tool": "cmake",
+          "max_rss_gb": 4,
+          "num_steps": 5,
+          "avg_step_duration_s": 60
+        }
+      }'
+
+  Expected: Optimized config with concurrency, CPU, memory suggestions
+
+📊 VIEW RESULTS
+
+  • Grafana: http://localhost:3000
+    → Dashboards → Browse → "Pipelines Overview"
+    → See build duration trends, cache hit ratios
+
+  • Prometheus: http://localhost:9090
+    → Explore metrics: im_cpu_usage_percent, im_mem_used_bytes
+
+  • MinIO: http://localhost:9001 (minioadmin/minioadmin)
+    → Browse logs in "im-logs" bucket
+
+🔧 USEFUL COMMANDS
+
+  make up           Start all services
+  make down         Stop all services
+  make logs         View logs
+  make seed-demo    Generate demo data
+  make train        Train ML model
+  make test         Run tests
+  make build-agent  Build C++ agent
+  make lint         Lint code
+
+📖 DOCUMENTATION
+
+  docs/quickstart.md      Full quick start guide
+  docs/architecture.md    System architecture
+  docs/api.md            API reference
+  docs/ml.md             ML models explained
+  PROJECT_SUMMARY.md     Complete project overview
+
+🎯 NEXT STEPS
+
+  1. Explore API: http://localhost:8080/docs
+  2. Check Grafana dashboards
+  3. Review Jenkins integration in examples/Jenkinsfile
+  4. Read docs/architecture.md for deployment
+
+🐛 TROUBLESHOOTING
+
+  Services won't start:
+    $ make down && docker volume prune && make up
+
+  Check logs:
+    $ docker-compose logs -f api
+
+  Reset database:
+    $ docker-compose down -v && make up
+
+💡 JENKINS INTEGRATION
+
+  Add to your Jenkinsfile:
+
+    @Library('inframind') _
+    pipeline {
+      stages {
+        stage('Optimize') {
+          steps { inframindOptimize(params: [tool: 'cmake']) }
+        }
+        stage('Build') {
+          steps { inframindStage(name: 'compile') { sh 'make' } }
+        }
+      }
+      post { always { inframindNotify() } }
+    }
+
+☸️  KUBERNETES DEPLOYMENT
+
+  $ kubectl apply -f deploy/k8s/namespace.yaml
+  $ kubectl apply -f deploy/k8s/
+
+🔒 SECURITY NOTE
+
+  Default credentials are for DEV ONLY!
+  Change before production:
+    • API_KEY in .env
+    • Grafana admin password
+    • Database passwords
+
+📧 SUPPORT
+
+  • Issues: GitHub Issues
+  • Docs: See docs/ directory
+  • Examples: See examples/ directory
+
+═══════════════════════════════════════════════════════════════════════
+
+Built with ❤️  using FastAPI, C++20, Python, and Machine Learning
+
+MIT License | See LICENSE file

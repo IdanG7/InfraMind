@@ -1,0 +1,42 @@
+groups:
+  - name: build-slo
+    interval: 30s
+    rules:
+      - alert: BuildTimeSLOViolation
+        expr: |
+          histogram_quantile(0.95, sum(rate(im_step_duration_seconds_bucket[10m])) by (le,pipeline)) > 900
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Build time p95 exceeded 15m for pipeline {{ $labels.pipeline }}"
+          description: "Pipeline {{ $labels.pipeline }} has consistently high build times"
+
+      - alert: OOMKillDetected
+        expr: |
+          increase(im_mem_oom_kills_total[24h]) > 0
+        labels:
+          severity: critical
+        annotations:
+          summary: "OOM kill detected for {{ $labels.pod }}"
+          description: "Pod {{ $labels.pod }} experienced OOM kill in the last 24h"
+
+      - alert: CacheHitRatioLow
+        expr: |
+          avg_over_time(im_cache_hit_ratio[1h]) < 0.3
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low cache hit ratio ({{ $value | humanizePercentage }})"
+          description: "Cache hit ratio has been below 30% for 30 minutes"
+
+      - alert: HighCPUThrottling
+        expr: |
+          rate(im_cpu_throttled_seconds_total[5m]) > 0.1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU throttling detected on {{ $labels.pod }}"
+          description: "Pod {{ $labels.pod }} experiencing significant CPU throttling"

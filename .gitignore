@@ -1,0 +1,84 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# C++
+*.o
+*.a
+*.so
+*.dylib
+*.out
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+compile_commands.json
+agents/cpp_agent/build/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Docker
+*.log
+
+# Data
+*.db
+*.sqlite
+data/
+logs/
+models/*.pkl
+models/*.joblib
+
+# Kubernetes
+*.kubeconfig
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
+
+# MinIO/S3
+minio-data/
+
+# Secrets
+*.pem
+*.key
+secrets.yaml
+.secrets/

@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: inframind-agent
+  namespace: infra
+  labels:
+    app: inframind-agent
+spec:
+  selector:
+    matchLabels:
+      app: inframind-agent
+  template:
+    metadata:
+      labels:
+        app: inframind-agent
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9102"
+        prometheus.io/path: "/metrics"
+    spec:
+      hostPID: true
+      hostNetwork: true
+      containers:
+        - name: agent
+          image: ghcr.io/yourorg/inframind-agent:0.1.0
+          ports:
+            - containerPort: 9102
+              name: metrics
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - name: proc
+              mountPath: /host/proc
+              readOnly: true
+            - name: sys
+              mountPath: /host/sys
+              readOnly: true
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: proc
+          hostPath:
+            path: /proc
+        - name: sys
+          hostPath:
+            path: /sys

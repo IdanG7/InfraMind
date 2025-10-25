@@ -1,0 +1,79 @@
+{
+  "dashboard": {
+    "title": "InfraMind - Pipelines Overview",
+    "tags": ["inframind", "ci-cd"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Build Duration Trend",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "avg(im_build_duration_seconds) by (pipeline)",
+            "legendFormat": "{{ pipeline }}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+      },
+      {
+        "id": 2,
+        "title": "Cache Hit Ratio",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "avg(im_cache_hit_ratio)",
+            "legendFormat": "Hit Ratio"
+          }
+        ],
+        "yaxes": [
+          {"format": "percentunit", "max": 1, "min": 0}
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+      },
+      {
+        "id": 3,
+        "title": "Success Rate",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum(rate(im_builds_success_total[1h])) / sum(rate(im_builds_total[1h]))",
+            "legendFormat": "Success Rate"
+          }
+        ],
+        "gridPos": {"h": 4, "w": 6, "x": 0, "y": 8}
+      },
+      {
+        "id": 4,
+        "title": "Avg Build Time",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "avg(im_build_duration_seconds)",
+            "legendFormat": "Avg Duration"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {"unit": "s"}
+        },
+        "gridPos": {"h": 4, "w": 6, "x": 6, "y": 8}
+      },
+      {
+        "id": 5,
+        "title": "Optimization Impact",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "im_build_duration_seconds{optimized=\"true\"}",
+            "legendFormat": "Optimized"
+          },
+          {
+            "expr": "im_build_duration_seconds{optimized=\"false\"}",
+            "legendFormat": "Baseline"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 12}
+      }
+    ]
+  }
+}

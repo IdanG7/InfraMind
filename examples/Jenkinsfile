@@ -1,0 +1,129 @@
+@Library('inframind') _
+
+pipeline {
+    agent {
+        kubernetes {
+            label 'inframind-builder'
+            yaml """
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    jenkins: agent
+spec:
+  containers:
+  - name: builder
+    image: gcc:13
+    command:
+    - cat
+    tty: true
+    resources:
+      requests:
+        cpu: "\${env.IM_CPU_REQUEST ?: '4'}"
+        memory: "\${env.IM_MEM_REQUEST_GB ?: '8'}Gi"
+      limits:
+        cpu: "8"
+        memory: "16Gi"
+"""
+        }
+    }
+
+    options {
+        timestamps()
+        timeout(time: 30, unit: 'MINUTES')
+    }
+
+    environment {
+        INFRA_API = 'http://inframind-api.infra.svc.cluster.local:8080'
+        INFRA_PIPELINE = "${env.JOB_NAME}/${env.BUILD_NUMBER}"
+        MAKEFLAGS = "-j\${env.IM_CONCURRENCY ?: '4'}"
+    }
+
+    stages {
+        stage('Optimize') {
+            steps {
+                script {
+                    // Get optimization suggestions
+                    inframindOptimize(params: [
+                        tool: 'cmake',
+                        repo: env.GIT_URL,
+                        image: 'gcc:13'
+                    ])
+                }
+            }
+        }
+
+        stage('Checkout') {
+            steps {
+                inframindStage(name: 'checkout') {
+                    checkout scm
+                }
+            }
+        }
+
+        stage('Configure') {
+            steps {
+                container('builder') {
+                    inframindStage(name: 'configure') {
+                        sh '''
+                            cmake -S . -B build \
+                              -DCMAKE_BUILD_TYPE=Release \
+                              -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+                        '''
+                    }
+                }
+            }
+        }
+
+        stage('Build') {
+            steps {
+                container('builder') {
+                    inframindStage(name: 'build') {
+                        sh '''
+                            cmake --build build -j${IM_CONCURRENCY:-4}
+                        '''
+                    }
+                }
+            }
+        }
+
+        stage('Test') {
+            steps {
+                container('builder') {
+                    inframindStage(name: 'test') {
+                        sh '''
+                            cd build
+                            ctest --output-on-failure --parallel ${IM_CONCURRENCY:-4}
+                        '''
+                    }
+                }
+            }
+        }
+
+        stage('Package') {
+            steps {
+                container('builder') {
+                    inframindStage(name: 'package') {
+                        sh '''
+                            cd build
+                            cpack -G TGZ
+                        '''
+                        archiveArtifacts artifacts: 'build/*.tar.gz', fingerprint: true
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            inframindNotify()
+        }
+        success {
+            echo "Build optimized by InfraMind!"
+        }
+        failure {
+            echo "Build failed. InfraMind will learn from this."
+        }
+    }
+}
