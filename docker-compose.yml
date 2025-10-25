@@ -1,16 +1,14 @@
-version: '3.8'
-
 services:
   # PostgreSQL Database
   postgres:
     image: postgres:16-alpine
     container_name: inframind-postgres
     environment:
-      POSTGRES_USER: inframind
-      POSTGRES_PASSWORD: inframind_dev
-      POSTGRES_DB: inframind
+      POSTGRES_USER: ${POSTGRES_USER:-inframind}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-inframind_dev}
+      POSTGRES_DB: ${POSTGRES_DB:-inframind}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5433}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -24,8 +22,8 @@ services:
     image: redis:7-alpine
     container_name: inframind-redis
     ports:
-      - "6379:6379"
-    command: redis-server --appendonly yes
+      - "${REDIS_PORT:-6380}:6379"
+    command: redis-server --appendonly yes ${REDIS_PASSWORD:+--requirepass ${REDIS_PASSWORD}}
     volumes:
       - redis_data:/data
     healthcheck:
@@ -39,11 +37,11 @@ services:
     image: minio/minio:latest
     container_name: inframind-minio
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin}
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "${MINIO_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
     command: server /data --console-address ":9001"
     volumes:
       - minio_data:/data
@@ -60,16 +58,21 @@ services:
       dockerfile: Dockerfile
     container_name: inframind-api
     environment:
-      DATABASE_URL: postgresql://inframind:inframind_dev@postgres:5432/inframind
-      REDIS_URL: redis://redis:6379/0
-      MINIO_ENDPOINT: minio:9000
-      MINIO_ACCESS_KEY: minioadmin
-      MINIO_SECRET_KEY: minioadmin
-      MINIO_SECURE: "false"
-      LOG_LEVEL: info
-      MODEL_PATH: /app/models
+      DATABASE_URL: postgresql://${POSTGRES_USER:-inframind}:${POSTGRES_PASSWORD:-inframind_dev}@${POSTGRES_HOST:-postgres}:5432/${POSTGRES_DB:-inframind}
+      REDIS_URL: redis://${REDIS_PASSWORD:+:${REDIS_PASSWORD}@}${REDIS_HOST:-redis}:6379/0
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-minio:9000}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
+      MINIO_SECURE: ${MINIO_SECURE:-false}
+      MINIO_BUCKET: ${MINIO_BUCKET:-im-logs}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      MODEL_PATH: ${MODEL_PATH:-/app/models}
+      API_KEY: ${API_KEY:-dev-key-change-in-production}
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      RATE_LIMIT_ENABLED: ${RATE_LIMIT_ENABLED:-true}
+      RATE_LIMIT_PER_MINUTE: ${RATE_LIMIT_PER_MINUTE:-100}
     ports:
-      - "8080:8080"
+      - "${API_PORT:-8081}:8080"
     volumes:
       - ./services/api:/app
       - api_models:/app/models
@@ -85,7 +88,7 @@ services:
     image: prom/prometheus:latest
     container_name: inframind-prometheus
     ports:
-      - "9090:9090"
+      - "${PROMETHEUS_PORT:-9091}:9090"
     volumes:
       - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml
       - ./observability/prom_rules:/etc/prometheus/rules
@@ -101,11 +104,11 @@ services:
     image: grafana/grafana:latest
     container_name: inframind-grafana
     environment:
-      GF_SECURITY_ADMIN_USER: admin
-      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
       GF_INSTALL_PLUGINS: grafana-piechart-panel
     ports:
-      - "3000:3000"
+      - "${GRAFANA_PORT:-3001}:3000"
     volumes:
       - ./observability/grafana_dashboards:/etc/grafana/provisioning/dashboards
       - ./observability/grafana_datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml

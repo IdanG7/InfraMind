@@ -6,6 +6,7 @@ from typing import Any
 from sqlalchemy import (
     Column,
     Integer,
+    BigInteger,
     String,
     Float,
     Boolean,
@@ -77,9 +78,9 @@ class Step(Base):
     start_ts = Column(DateTime)
     end_ts = Column(DateTime)
     cpu_time_s = Column(Float)
-    rss_max_bytes = Column(Integer)
-    io_r_bytes = Column(Integer)
-    io_w_bytes = Column(Integer)
+    rss_max_bytes = Column(BigInteger)
+    io_r_bytes = Column(BigInteger)
+    io_w_bytes = Column(BigInteger)
     cache_hits = Column(Integer, default=0)
     cache_misses = Column(Integer, default=0)
 

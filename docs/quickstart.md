@@ -55,16 +55,16 @@ This will:
 
 Open the following in your browser:
 
-- **API Documentation**: http://localhost:8080/docs
-- **Grafana Dashboards**: http://localhost:3000 (admin/admin)
-- **Prometheus**: http://localhost:9090
+- **API Documentation**: http://localhost:8081/docs
+- **Grafana Dashboards**: http://localhost:3001 (admin/admin)
+- **Prometheus**: http://localhost:9091
 - **MinIO Console**: http://localhost:9001 (minioadmin/minioadmin)
 
 ### 4. Test Optimization
 
 ```bash
 # Request optimization suggestions
-curl -X POST http://localhost:8080/optimize \
+curl -X POST http://localhost:8081/optimize \
   -H "Content-Type: application/json" \
   -H "X-IM-Token: dev-key-change-in-production" \
   -d '{
@@ -118,7 +118,7 @@ Expected response:
 ## Next Steps
 
 1. **Grafana**: Explore the "Pipelines Overview" dashboard
-2. **API**: Try other endpoints at http://localhost:8080/docs
+2. **API**: Try other endpoints at http://localhost:8081/docs
 3. **Jenkins**: See [Jenkins Integration](./architecture.md#jenkins-integration)
 4. **Production**: See [Deployment Guide](./architecture.md#kubernetes-deployment)
 
@@ -148,7 +148,19 @@ docker-compose restart api
 
 ### Port conflicts
 
-Edit `docker-compose.yml` to change port mappings if 8080, 3000, 5432, etc. are already in use.
+If you experience port conflicts, you can customize ports by creating a `.env` file:
+
+```bash
+# Copy the example and customize ports
+cp .env.example .env
+
+# Edit .env to change ports
+# API_PORT=8081
+# GRAFANA_PORT=3001
+# PROMETHEUS_PORT=9091
+# POSTGRES_PORT=5433
+# REDIS_PORT=6380
+```
 
 ## Cleanup
 

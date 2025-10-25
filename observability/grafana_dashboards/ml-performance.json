@@ -1,0 +1,169 @@
+{
+  "dashboard": {
+    "title": "InfraMind - ML Performance",
+    "tags": ["inframind", "ml", "performance"],
+    "timezone": "browser",
+    "refresh": "30s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Model Prediction Accuracy (MAE)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "im_ml_prediction_mae_seconds",
+            "legendFormat": "Mean Absolute Error (s)"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {"unit": "s"}
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+      },
+      {
+        "id": 2,
+        "title": "Model R² Score",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "im_ml_r2_score",
+            "legendFormat": "R² Score"
+          }
+        ],
+        "yaxes": [
+          {"format": "percentunit", "max": 1, "min": 0}
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+      },
+      {
+        "id": 3,
+        "title": "Optimization Requests/sec",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(im_optimize_requests_total[5m])",
+            "legendFormat": "Requests/sec"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+      },
+      {
+        "id": 4,
+        "title": "API Latency (p95)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(im_api_latency_seconds_bucket[5m]))",
+            "legendFormat": "p95 latency"
+          },
+          {
+            "expr": "histogram_quantile(0.50, rate(im_api_latency_seconds_bucket[5m]))",
+            "legendFormat": "p50 latency"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {"unit": "s"}
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}
+      },
+      {
+        "id": 5,
+        "title": "Training Data Size",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "im_training_samples_total",
+            "legendFormat": "Total Samples"
+          }
+        ],
+        "gridPos": {"h": 4, "w": 6, "x": 0, "y": 16}
+      },
+      {
+        "id": 6,
+        "title": "Model Version",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "im_model_version",
+            "legendFormat": "Active Version"
+          }
+        ],
+        "gridPos": {"h": 4, "w": 6, "x": 6, "y": 16}
+      },
+      {
+        "id": 7,
+        "title": "Cache Hit Rate",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum(rate(im_cache_hits_total[5m])) / sum(rate(im_cache_requests_total[5m]))",
+            "legendFormat": "Hit Rate"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {"unit": "percentunit"}
+        },
+        "gridPos": {"h": 4, "w": 6, "x": 12, "y": 16}
+      },
+      {
+        "id": 8,
+        "title": "Confidence Distribution",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, im_suggestion_confidence_bucket)",
+            "legendFormat": "p95 confidence"
+          },
+          {
+            "expr": "histogram_quantile(0.50, im_suggestion_confidence_bucket)",
+            "legendFormat": "p50 confidence"
+          }
+        ],
+        "yaxes": [
+          {"format": "percentunit", "max": 1, "min": 0}
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 20}
+      },
+      {
+        "id": 9,
+        "title": "Feature Extraction Time",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(im_feature_extraction_duration_seconds_sum[5m]) / rate(im_feature_extraction_duration_seconds_count[5m])",
+            "legendFormat": "Avg extraction time"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {"unit": "s"}
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 20}
+      },
+      {
+        "id": 10,
+        "title": "Model Training Frequency",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "increase(im_model_training_total[1h])",
+            "legendFormat": "Trainings per hour"
+          }
+        ],
+        "gridPos": {"h": 6, "w": 12, "x": 0, "y": 28}
+      },
+      {
+        "id": 11,
+        "title": "Prediction Errors (Last 24h)",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "topk(10, im_prediction_error_seconds) by (pipeline)",
+            "format": "table",
+            "instant": true
+          }
+        ],
+        "gridPos": {"h": 6, "w": 12, "x": 12, "y": 28}
+      }
+    ]
+  }
+}

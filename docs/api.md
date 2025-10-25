@@ -4,15 +4,15 @@ InfraMind FastAPI service endpoints.
 
 ## Base URL
 
-- **Local**: `http://localhost:8080`
-- **K8s**: `http://inframind-api.infra.svc.cluster.local:8080`
+- **Local**: `http://localhost:8081`
+- **K8s**: `http://inframind-api.infra.svc.cluster.local:8080` (internal container port)
 
 ## Authentication
 
 All endpoints (except `/healthz`) require API key:
 
 ```bash
-curl -H "X-IM-Token: your-api-key" http://localhost:8080/optimize
+curl -H "X-IM-Token: your-api-key" http://localhost:8081/optimize
 ```
 
 Set in environment: `API_KEY=your-secret-key`
@@ -283,6 +283,6 @@ Get computed features for a run.
 
 ## OpenAPI
 
-Interactive docs: `http://localhost:8080/docs`
+Interactive docs: `http://localhost:8081/docs`
 
-Swagger JSON: `http://localhost:8080/openapi.json`
+Swagger JSON: `http://localhost:8081/openapi.json`

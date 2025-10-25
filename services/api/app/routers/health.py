@@ -28,7 +28,8 @@ async def readyz(db: Session = Depends(get_db)) -> HealthResp:
     """Readiness check - includes dependencies"""
     # Check database
     try:
-        db.execute("SELECT 1")
+        from sqlalchemy import text
+        db.execute(text("SELECT 1"))
     except Exception as e:
         return HealthResp(
             status=f"error: database unavailable - {e}",

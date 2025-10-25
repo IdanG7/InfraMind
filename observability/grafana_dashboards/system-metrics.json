@@ -1,0 +1,181 @@
+{
+  "dashboard": {
+    "title": "InfraMind - System Metrics",
+    "tags": ["inframind", "system", "infrastructure"],
+    "timezone": "browser",
+    "refresh": "10s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "API Request Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "sum(rate(im_http_requests_total[5m])) by (method, endpoint)",
+            "legendFormat": "{{ method }} {{ endpoint }}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+      },
+      {
+        "id": 2,
+        "title": "API Response Time (by endpoint)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(im_http_request_duration_seconds_bucket[5m])) by (le, endpoint))",
+            "legendFormat": "{{ endpoint }} p95"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {"unit": "s"}
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+      },
+      {
+        "id": 3,
+        "title": "Database Connections",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "im_db_connections_active",
+            "legendFormat": "Active"
+          },
+          {
+            "expr": "im_db_connections_idle",
+            "legendFormat": "Idle"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+      },
+      {
+        "id": 4,
+        "title": "Database Query Duration",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(im_db_query_duration_seconds_sum[5m]) / rate(im_db_query_duration_seconds_count[5m])",
+            "legendFormat": "Avg query time"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {"unit": "s"}
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}
+      },
+      {
+        "id": 5,
+        "title": "Redis Operations/sec",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "sum(rate(im_redis_ops_total[5m])) by (operation)",
+            "legendFormat": "{{ operation }}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16}
+      },
+      {
+        "id": 6,
+        "title": "Memory Usage",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "process_resident_memory_bytes{job=\"inframind-api\"}",
+            "legendFormat": "API Memory"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {"unit": "bytes"}
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16}
+      },
+      {
+        "id": 7,
+        "title": "CPU Usage",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(process_cpu_seconds_total{job=\"inframind-api\"}[5m])",
+            "legendFormat": "API CPU"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {"unit": "percentunit"}
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 24}
+      },
+      {
+        "id": 8,
+        "title": "HTTP Error Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "sum(rate(im_http_requests_total{status=~\"5..\"}[5m]))",
+            "legendFormat": "5xx errors"
+          },
+          {
+            "expr": "sum(rate(im_http_requests_total{status=~\"4..\"}[5m]))",
+            "legendFormat": "4xx errors"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 24}
+      },
+      {
+        "id": 9,
+        "title": "Total Runs Processed",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "im_runs_total",
+            "legendFormat": "Total Runs"
+          }
+        ],
+        "gridPos": {"h": 4, "w": 6, "x": 0, "y": 32}
+      },
+      {
+        "id": 10,
+        "title": "Uptime",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "time() - process_start_time_seconds{job=\"inframind-api\"}",
+            "legendFormat": "Uptime"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {"unit": "s"}
+        },
+        "gridPos": {"h": 4, "w": 6, "x": 6, "y": 32}
+      },
+      {
+        "id": 11,
+        "title": "Goroutines/Threads",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "go_goroutines{job=\"inframind-api\"}",
+            "legendFormat": "Goroutines"
+          }
+        ],
+        "gridPos": {"h": 4, "w": 6, "x": 12, "y": 32}
+      },
+      {
+        "id": 12,
+        "title": "File Descriptors",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "process_open_fds{job=\"inframind-api\"}",
+            "legendFormat": "Open FDs"
+          },
+          {
+            "expr": "process_max_fds{job=\"inframind-api\"}",
+            "legendFormat": "Max FDs"
+          }
+        ],
+        "gridPos": {"h": 6, "w": 12, "x": 0, "y": 36}
+      }
+    ]
+  }
+}

@@ -175,12 +175,12 @@ make up
 ```mermaid
 graph LR
     subgraph Docker Compose
-        API[FastAPI :8080]
-        PG[(PostgreSQL :5432)]
-        Redis[(Redis :6379)]
-        Prom[Prometheus :9090]
-        Graf[Grafana :3000]
-        MinIO[MinIO :9000]
+        API[FastAPI :8081]
+        PG[(PostgreSQL :5433)]
+        Redis[(Redis :6380)]
+        Prom[Prometheus :9091]
+        Graf[Grafana :3001]
+        MinIO[MinIO :9000/9001]
 
         API <--> PG
         API <--> Redis
@@ -188,8 +188,10 @@ graph LR
         Prom --> Graf
     end
 
-    Browser[Browser] --> API
-    Browser --> Graf
+    Browser[Browser] -->|localhost:8081| API
+    Browser -->|localhost:3001| Graf
+
+    note[Note: These are<br/>external ports.<br/>Customize via .env]
 ```
 
 All services on localhost with persistent volumes.

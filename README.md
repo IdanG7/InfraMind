@@ -27,8 +27,8 @@ make up
 make seed-demo
 
 # Open dashboards
-open http://localhost:8080/docs    # API docs
-open http://localhost:3000         # Grafana
+open http://localhost:8081/docs    # API docs
+open http://localhost:3001         # Grafana
 ```
 
 ## Architecture
