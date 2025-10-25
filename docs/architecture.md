@@ -25,6 +25,46 @@ InfraMind is a distributed system for CI/CD optimization with ML-driven resource
 
 **Purpose**: Low-overhead profiling of build agents. Collects CPU, memory, I/O, and cache metrics.
 
+```mermaid
+flowchart TB
+    subgraph Agent Process
+        Main[Main Loop<br/>1s interval]
+
+        subgraph Collectors
+            CPU[CPU Collector<br/>/proc/stat]
+            Mem[Memory Collector<br/>/proc/meminfo]
+            IO[I/O Collector<br/>/proc/self/io]
+            Cache[Cache Collector<br/>ccache/bazel stats]
+        end
+
+        subgraph Exporters
+            Prom[Prometheus Exporter<br/>:9102/metrics]
+            Log[JSON Logger<br/>stdout]
+        end
+
+        Main --> CPU
+        Main --> Mem
+        Main --> IO
+        Main --> Cache
+
+        CPU --> Metrics[Aggregate Metrics]
+        Mem --> Metrics
+        IO --> Metrics
+        Cache --> Metrics
+
+        Metrics --> Prom
+        Metrics --> Log
+    end
+
+    K8s[Kubernetes] -.->|scrape :9102| Prom
+    FluentBit[Fluent Bit] -.->|read stdout| Log
+    FluentBit --> S3[S3/MinIO]
+
+    style CPU fill:#3498db,stroke:#2980b9,color:#fff
+    style Prom fill:#e74c3c,stroke:#c0392b,color:#fff
+    style Log fill:#f39c12,stroke:#e67e22,color:#fff
+```
+
 **Architecture**:
 - **Collectors**: Modular metric collectors (CPU, mem, I/O, cache)
 - **Exporters**: Prometheus HTTP endpoint (`:9102/metrics`) + JSON logging
@@ -86,47 +126,42 @@ pipeline {
 
 ## Data Flow
 
-```
-┌─────────────┐
-│   Jenkins   │
-└──────┬──────┘
-       │ 1. Start build
-       ▼
-┌─────────────────┐
-│  FastAPI        │◄───── 2. Request optimization
-│  /optimize      │
-└────────┬────────┘
-         │ 3. Query history
-         ▼
-    ┌────────┐
-    │ Postgres│
-    └────────┘
-         │
-         │ 4. Train/predict
-         ▼
-    ┌────────┐
-    │  Model │
-    └────────┘
-         │
-         │ 5. Return suggestions
-         ▼
-┌─────────────┐
-│   Jenkins   │──────► Apply config
-└─────────────┘
-         │
-         │ 6. Build runs
-         ▼
-┌─────────────────┐
-│ K8s Agent Pod   │
-│  + C++ Agent    │──► Metrics ──► Prometheus
-└─────────────────┘        │
-         │                 └──► Grafana
-         │ 7. Step events
-         ▼
-┌─────────────────┐
-│  FastAPI        │──► Store telemetry
-│  /builds/step   │
-└─────────────────┘
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Jenkins
+    participant API as FastAPI /optimize
+    participant DB as PostgreSQL
+    participant Model as ML Model
+    participant K8s as K8s Agent Pod
+    participant Agent as C++ Agent
+    participant Prom as Prometheus
+    participant Graf as Grafana
+
+    Jenkins->>API: POST /builds/start
+    Jenkins->>API: Request optimization
+    API->>DB: Query build history
+    DB-->>API: Recent runs + metrics
+    API->>Model: Predict duration for candidates
+    Model-->>API: Best config + confidence
+    API-->>Jenkins: Return suggestions
+
+    Jenkins->>K8s: Apply optimized config
+    K8s->>Agent: Start telemetry collection
+
+    loop Build running
+        Agent->>Prom: Export metrics (CPU, mem, I/O)
+        Agent->>Jenkins: Stream logs
+    end
+
+    Jenkins->>API: POST /builds/step (telemetry)
+    API->>DB: Store step data
+
+    Jenkins->>API: POST /builds/complete
+    API->>DB: Store final results
+    API->>Model: Update training data
+
+    Prom->>Graf: Render dashboards
 ```
 
 ## Deployment Modes
@@ -137,6 +172,26 @@ pipeline {
 make up
 ```
 
+```mermaid
+graph LR
+    subgraph Docker Compose
+        API[FastAPI :8080]
+        PG[(PostgreSQL :5432)]
+        Redis[(Redis :6379)]
+        Prom[Prometheus :9090]
+        Graf[Grafana :3000]
+        MinIO[MinIO :9000]
+
+        API <--> PG
+        API <--> Redis
+        API --> MinIO
+        Prom --> Graf
+    end
+
+    Browser[Browser] --> API
+    Browser --> Graf
+```
+
 All services on localhost with persistent volumes.
 
 ### Kubernetes
@@ -144,6 +199,49 @@ All services on localhost with persistent volumes.
 ```bash
 kubectl apply -f deploy/k8s/namespace.yaml
 kubectl apply -f deploy/k8s/
+```
+
+```mermaid
+graph TB
+    subgraph Namespace: infra
+        subgraph API Layer
+            API1[API Pod 1]
+            API2[API Pod 2]
+            APISvc[Service: inframind-api]
+            API1 --> APISvc
+            API2 --> APISvc
+        end
+
+        subgraph Data Layer
+            PG[PostgreSQL StatefulSet]
+            Redis[Redis StatefulSet]
+            PGVol[(PVC 20Gi)]
+            RedisVol[(PVC 5Gi)]
+            PG --> PGVol
+            Redis --> RedisVol
+        end
+
+        subgraph Telemetry Layer
+            Agent1[Agent DaemonSet Pod 1]
+            Agent2[Agent DaemonSet Pod 2]
+            AgentN[Agent DaemonSet Pod N]
+        end
+
+        subgraph Observability
+            Prom[Prometheus]
+            Graf[Grafana]
+            Prom --> Graf
+        end
+
+        APISvc <--> PG
+        APISvc <--> Redis
+        Agent1 -.->|scrape :9102| Prom
+        Agent2 -.->|scrape :9102| Prom
+        AgentN -.->|scrape :9102| Prom
+    end
+
+    Jenkins[Jenkins] -->|webhook| APISvc
+    User[User] --> Graf
 ```
 
 Components:

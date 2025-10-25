@@ -30,6 +30,21 @@ docker-compose ps
 make seed-demo
 ```
 
+```mermaid
+flowchart LR
+    Start[make seed-demo] --> Gen[Generate 50 Runs]
+    Gen --> Vary[Vary configs:<br/>cpu=2-8, mem=4-32GB]
+    Vary --> Store[(Store in PostgreSQL)]
+    Store --> Features[Compute Features]
+    Features --> Train[Train ML Model]
+    Train --> Save[Save model to<br/>models/v*.joblib]
+    Save --> Redis[(Update Redis<br/>active version)]
+    Redis --> Done[✓ Ready to optimize]
+
+    style Train fill:#e74c3c,stroke:#c0392b,color:#fff
+    style Done fill:#2ecc71,stroke:#27ae60,color:#fff
+```
+
 This will:
 - Create a demo pipeline `demo/example-app`
 - Generate 50 build runs with varying configurations
@@ -62,6 +77,25 @@ curl -X POST http://localhost:8080/optimize \
       "avg_step_duration_s": 60
     }
   }'
+```
+
+```mermaid
+sequenceDiagram
+    participant You
+    participant API
+    participant ML
+    participant DB
+
+    You->>API: POST /optimize<br/>(context: tool, metrics)
+    API->>DB: Query last 100 runs
+    DB-->>API: Build history
+    API->>ML: Generate candidates
+    ML->>ML: Score configs
+    ML->>ML: Apply safety guards
+    ML-->>API: Best config
+    API-->>You: Suggestions + rationale
+
+    Note over You,API: Response in ~50-100ms
 ```
 
 Expected response:

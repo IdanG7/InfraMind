@@ -33,12 +33,28 @@ open http://localhost:3000         # Grafana
 
 ## Architecture
 
-```
-Developer → Jenkins → K8s Agent Pod → [C++ Telemetry Agent]
-                 ↓                           ↓
-            FastAPI ← Metrics ← Prometheus ←
-                 ↓
-          ML Optimizer → Suggestions → Next Run
+```mermaid
+graph TB
+    Dev[Developer pushes code] --> Jenkins[Jenkins Pipeline]
+    Jenkins -->|executes on| Agent[K8s Build Agent Pod]
+    Agent --> CppAgent[C++ Telemetry Agent]
+
+    CppAgent -->|metrics| Prom[Prometheus]
+    CppAgent -->|logs| S3[S3/MinIO]
+
+    Jenkins -->|webhooks| API[FastAPI Analytics API]
+    API <-->|store| PG[(PostgreSQL)]
+    API <-->|cache| Redis[(Redis)]
+
+    Prom --> Graf[Grafana Dashboards]
+
+    API -->|ML suggestions| Jenkins
+    API -->|train| ML[ML Optimizer]
+    ML -->|predict| API
+
+    style API fill:#3498db,stroke:#2980b9,color:#fff
+    style ML fill:#e74c3c,stroke:#c0392b,color:#fff
+    style CppAgent fill:#2ecc71,stroke:#27ae60,color:#fff
 ```
 
 See [docs/architecture.md](docs/architecture.md) for details.
@@ -75,6 +91,25 @@ pipeline {
 
 ### 2. View Optimizations
 
+```mermaid
+sequenceDiagram
+    participant J as Jenkins
+    participant API as InfraMind API
+    participant ML as ML Optimizer
+    participant K8s as Kubernetes
+
+    J->>API: POST /optimize (context)
+    API->>ML: Get suggestions
+    ML->>ML: Predict duration for candidates
+    ML->>ML: Apply safety guards
+    ML-->>API: Best config + rationale
+    API-->>J: Suggestions (CPU, mem, cache)
+    J->>K8s: Apply optimized resources
+    K8s-->>J: Start build with new config
+    J->>API: POST /builds/complete (results)
+    API->>ML: Update training data
+```
+
 The optimizer will automatically:
 - Tune concurrency based on I/O vs CPU patterns
 - Right-size memory to avoid OOMs without over-provisioning
@@ -83,12 +118,13 @@ The optimizer will automatically:
 
 ## Documentation
 
-- [Quick Start Guide](docs/quickstart.md)
-- [Architecture Overview](docs/architecture.md)
-- [API Reference](docs/api.md)
-- [ML Models & Features](docs/ml.md)
-- [Security & RBAC](docs/security.md)
-- [Dashboard Guide](docs/dashboards.md)
+- [Quick Start Guide](docs/quickstart.md) - Get started in 5 minutes
+- [Architecture Overview](docs/architecture.md) - System design & components
+- [API Reference](docs/api.md) - REST API endpoints
+- [ML Models & Features](docs/ml.md) - How the optimizer works
+- [Benefits & ROI](docs/benefits.md) - Performance impact & examples
+- [Visual Diagrams](DIAGRAMS.md) - All Mermaid diagrams in one place
+- [Project Summary](PROJECT_SUMMARY.md) - Complete project overview
 
 ## Development
 

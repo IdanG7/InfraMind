@@ -17,6 +17,47 @@ curl -H "X-IM-Token: your-api-key" http://localhost:8080/optimize
 
 Set in environment: `API_KEY=your-secret-key`
 
+## API Flow
+
+```mermaid
+sequenceDiagram
+    participant C as Client/Jenkins
+    participant API as InfraMind API
+    participant Auth as Auth Middleware
+    participant DB as PostgreSQL
+    participant Cache as Redis
+    participant ML as ML Engine
+
+    C->>API: POST /builds/start
+    API->>Auth: Verify X-IM-Token
+    Auth-->>API: Authorized
+    API->>DB: Insert run record
+    DB-->>API: Run ID
+    API-->>C: {ok: true}
+
+    C->>API: POST /optimize
+    API->>Auth: Verify token
+    API->>Cache: Check cached suggestion
+    Cache-->>API: Cache miss
+    API->>DB: Query history
+    DB-->>API: Last 100 runs
+    API->>ML: Generate suggestions
+    ML-->>API: Best config + rationale
+    API->>Cache: Cache suggestion
+    API->>DB: Store suggestion
+    API-->>C: Suggestions
+
+    C->>API: POST /builds/step (telemetry)
+    API->>DB: Store step data
+    API-->>C: {ok: true}
+
+    C->>API: POST /builds/complete
+    API->>DB: Update run status
+    DB-->>API: Updated
+    API->>ML: Trigger feature computation
+    API-->>C: {ok: true}
+```
+
 ---
 
 ## Endpoints

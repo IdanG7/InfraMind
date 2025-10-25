@@ -21,6 +21,59 @@ A **complete, working CI/CD optimization platform** with:
 9. ✅ **Comprehensive Documentation** - Architecture, API, ML docs
 10. ✅ **CI/CD Pipeline** - GitHub Actions workflows
 
+## System Architecture
+
+```mermaid
+graph TB
+    subgraph Developer Workflow
+        Dev[Developer] -->|git push| SCM[Git Repository]
+        SCM -->|webhook| Jenkins[Jenkins]
+    end
+
+    subgraph Build Execution
+        Jenkins -->|1. Request suggestions| API
+        Jenkins -->|2. Start build| K8s[Kubernetes Cluster]
+
+        subgraph K8s Pod
+            Builder[Build Container<br/>gcc/cmake/maven]
+            Agent[C++ Telemetry Agent<br/>:9102]
+            Builder -.->|profile| Agent
+        end
+
+        K8s --> Builder
+        K8s --> Agent
+    end
+
+    subgraph InfraMind Platform
+        API[FastAPI Service<br/>:8080]
+        DB[(PostgreSQL<br/>Runs, Steps, Features)]
+        Cache[(Redis<br/>Suggestions Cache)]
+        ML[ML Optimizer<br/>RandomForest]
+        Models[Model Store<br/>joblib files]
+
+        API <--> DB
+        API <--> Cache
+        API <--> ML
+        ML <--> Models
+    end
+
+    subgraph Observability
+        Agent -->|metrics| Prom[Prometheus]
+        Agent -->|logs| S3[S3/MinIO]
+        Prom --> Graf[Grafana<br/>Dashboards]
+        Jenkins -->|telemetry| API
+    end
+
+    API -->|suggestions| Jenkins
+    Jenkins -->|results| API
+    API -->|train| ML
+
+    style API fill:#3498db,stroke:#2980b9,color:#fff
+    style ML fill:#e74c3c,stroke:#c0392b,color:#fff
+    style Agent fill:#2ecc71,stroke:#27ae60,color:#fff
+    style Graf fill:#f39c12,stroke:#e67e22,color:#fff
+```
+
 ---
 
 ## Directory Structure

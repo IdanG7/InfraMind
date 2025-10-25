@@ -11,6 +11,46 @@ InfraMind uses **supervised learning** to predict build duration based on:
 
 **Goal**: Minimize `duration_s` while avoiding OOM and resource starvation.
 
+```mermaid
+flowchart TB
+    subgraph Input Features
+        Static[Static Context<br/>repo, branch, image]
+        Resources[Requested Resources<br/>CPU, mem, concurrency]
+        Telemetry[Historical Telemetry<br/>RSS, I/O, cache hits]
+    end
+
+    subgraph ML Pipeline
+        Features[Feature Engineering<br/>15+ features]
+        Model[RandomForest<br/>Regressor]
+        Predict[Duration Prediction]
+    end
+
+    subgraph Optimization
+        Candidates[Generate Candidates<br/>Grid search ± deltas]
+        Score[Score Each Config]
+        Safety[Apply Safety Guards<br/>mem ≥ 1.2× RSS p95]
+        Best[Select Best Config]
+    end
+
+    Static --> Features
+    Resources --> Features
+    Telemetry --> Features
+
+    Features --> Model
+    Model --> Predict
+
+    Predict --> Candidates
+    Candidates --> Score
+    Score --> Safety
+    Safety --> Best
+
+    Best -->|Suggestions| Output[CPU, mem, concurrency,<br/>cache config]
+
+    style Model fill:#e74c3c,stroke:#c0392b,color:#fff
+    style Safety fill:#f39c12,stroke:#e67e22,color:#fff
+    style Output fill:#2ecc71,stroke:#27ae60,color:#fff
+```
+
 ## Features
 
 ### Input Features (per run)
@@ -49,7 +89,47 @@ InfraMind uses **supervised learning** to predict build duration based on:
 
 **Future**: LightGBM for faster training on large datasets.
 
-### Training
+### Training Pipeline
+
+```mermaid
+flowchart LR
+    subgraph Data Collection
+        DB[(PostgreSQL)]
+        Fetch[Fetch last 500<br/>successful runs]
+        DB --> Fetch
+    end
+
+    subgraph Feature Engineering
+        Raw[Raw Run Data]
+        Compute[Compute Features<br/>CPU, mem, I/O, cache]
+        Matrix[Feature Matrix X<br/>Labels y]
+        Fetch --> Raw
+        Raw --> Compute
+        Compute --> Matrix
+    end
+
+    subgraph Training
+        Split[Train/Test Split<br/>80/20]
+        Train[Train RandomForest]
+        Eval[Evaluate<br/>MAE, R²]
+        Matrix --> Split
+        Split --> Train
+        Train --> Eval
+    end
+
+    subgraph Deployment
+        Save[Save Model<br/>joblib]
+        Version[Version: v20251025]
+        Redis[(Redis<br/>im:model:active)]
+        Eval --> Save
+        Save --> Version
+        Version --> Redis
+    end
+
+    style Train fill:#e74c3c,stroke:#c0392b,color:#fff
+    style Eval fill:#3498db,stroke:#2980b9,color:#fff
+    style Redis fill:#2ecc71,stroke:#27ae60,color:#fff
+```
 
 Triggered:
 1. **Nightly**: Cron job via `make train`
@@ -86,6 +166,38 @@ save_model(model, version, metrics)
 - **Goal**: MAE < 30s, R² > 0.7
 
 ## Optimization Strategy
+
+```mermaid
+flowchart TB
+    Start[Optimization Request] --> Context[Receive Context<br/>tool, repo, metrics]
+
+    Context --> LastSuccess{Last Successful<br/>Config?}
+    LastSuccess -->|Yes| Base[Use as baseline]
+    LastSuccess -->|No| Default[Use defaults<br/>cpu=4, mem=8GB]
+
+    Base --> Grid[Generate Grid<br/>config ± Δ]
+    Default --> Grid
+
+    Grid --> Explore{15% chance}
+    Explore -->|Explore| Random[Add random config]
+    Explore -->|Exploit| Score
+
+    Random --> Score[Score All Candidates]
+
+    Score --> Loop{For each config}
+    Loop --> Safety[Apply Safety Guards]
+    Safety --> Predict[Predict Duration]
+    Predict --> Compare{Best so far?}
+    Compare -->|Yes| UpdateBest[Update best]
+    Compare -->|No| Loop
+    UpdateBest --> Loop
+
+    Loop -->|Done| Return[Return Best Config<br/>+ Rationale + Confidence]
+
+    style Safety fill:#f39c12,stroke:#e67e22,color:#fff
+    style Predict fill:#e74c3c,stroke:#c0392b,color:#fff
+    style Return fill:#2ecc71,stroke:#27ae60,color:#fff
+```
 
 ### Candidate Generation
 
