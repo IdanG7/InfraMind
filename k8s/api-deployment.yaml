@@ -1,0 +1,140 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inframind-api
+  namespace: infra
+  labels:
+    app: inframind-api
+    component: api
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: inframind-api
+  template:
+    metadata:
+      labels:
+        app: inframind-api
+        component: api
+    spec:
+      containers:
+      - name: api
+        image: ghcr.io/yourusername/inframind/api:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        env:
+        - name: ENVIRONMENT
+          value: "production"
+        - name: LOG_LEVEL
+          value: "warning"
+        - name: API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: inframind-secrets
+              key: api-key
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: inframind-secrets
+              key: database-url
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: inframind-secrets
+              key: redis-url
+        - name: MINIO_ENDPOINT
+          value: "minio-service.infra.svc.cluster.local:9000"
+        - name: MINIO_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: inframind-secrets
+              key: minio-access-key
+        - name: MINIO_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: inframind-secrets
+              key: minio-secret-key
+        - name: MINIO_SECURE
+          value: "false"
+        - name: MINIO_BUCKET
+          value: "inframind-logs"
+        - name: MODEL_PATH
+          value: "/app/models"
+        - name: UVICORN_WORKERS
+          value: "4"
+        - name: RATE_LIMIT_ENABLED
+          value: "true"
+        - name: RATE_LIMIT_PER_MINUTE
+          value: "1000"
+        - name: DB_POOL_SIZE
+          value: "20"
+        - name: DB_MAX_OVERFLOW
+          value: "40"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "2000m"
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 2
+        volumeMounts:
+        - name: models
+          mountPath: /app/models
+      volumes:
+      - name: models
+        persistentVolumeClaim:
+          claimName: inframind-models-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: inframind-api
+  namespace: infra
+  labels:
+    app: inframind-api
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8080
+    targetPort: 8080
+    protocol: TCP
+    name: http
+  selector:
+    app: inframind-api
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: inframind-models-pvc
+  namespace: infra
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: standard
