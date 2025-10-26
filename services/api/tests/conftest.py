@@ -1,6 +1,5 @@
 """Pytest configuration and fixtures"""
 
-import pytest
 import os
 
 # Set test environment variables before any app imports

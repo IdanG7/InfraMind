@@ -2,7 +2,7 @@
 
 from typing import Generator
 
-from fastapi import Depends, HTTPException, Security
+from fastapi import HTTPException, Security
 from fastapi.security import APIKeyHeader
 from sqlalchemy.orm import Session
 

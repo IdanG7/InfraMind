@@ -3,7 +3,7 @@
 import random
 from datetime import datetime, timedelta
 
-from ..models.orm import Pipeline, Run, Step, Feature
+from ..models.orm import Pipeline, Run, Step
 from ..storage.postgres import SessionLocal, init_db
 from ..ml.trainer import train_model
 

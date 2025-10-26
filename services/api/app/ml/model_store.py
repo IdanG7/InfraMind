@@ -1,6 +1,5 @@
 """Model storage and loading"""
 
-import os
 from pathlib import Path
 from typing import Any
 
