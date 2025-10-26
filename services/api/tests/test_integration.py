@@ -6,7 +6,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from app.main import app
 from app.models.orm import Base, Run, Step, Feature
-from app.database import get_db
+from app.deps import get_db
 import os
 
 # Test database URL
@@ -261,17 +261,38 @@ def test_failed_run_ingestion(client, db_session):
 def test_authentication_required(client):
     """Test that authentication is required for protected endpoints"""
 
+    # Minimal valid payload for runs endpoint
+    run_payload = {
+        "pipeline": "test/pipeline",
+        "build_number": 1,
+        "git_sha": "abc123",
+        "git_branch": "main",
+        "start_time": "2025-01-01T10:00:00Z",
+        "end_time": "2025-01-01T10:05:00Z",
+        "duration_s": 300.0,
+        "status": "success",
+        "tool": "test",
+        "concurrency": 1,
+        "cpu_req": 1,
+        "mem_req_gb": 2,
+        "steps": [],
+    }
+
     # No auth header
-    response = client.post("/runs", json={})
+    response = client.post("/runs", json=run_payload)
     assert response.status_code == 403
 
     # Wrong API key
     headers = {"X-IM-Token": "wrong-key"}
-    response = client.post("/runs", json={}, headers=headers)
+    response = client.post("/runs", json=run_payload, headers=headers)
     assert response.status_code == 403
 
     # Optimization endpoint
-    response = client.post("/optimize", json={})
+    optimize_payload = {
+        "pipeline": "test/pipeline",
+        "context": {"tool": "cmake"},
+    }
+    response = client.post("/optimize", json=optimize_payload)
     assert response.status_code == 403
 
 

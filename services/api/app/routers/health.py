@@ -14,12 +14,21 @@ router = APIRouter()
 
 
 @router.get("/healthz", response_model=HealthResp)
-async def healthz() -> HealthResp:
+async def healthz(db: Session = Depends(get_db)) -> HealthResp:
     """Health check - liveness probe"""
+    # Check database
+    db_status = "connected"
+    try:
+        from sqlalchemy import text
+        db.execute(text("SELECT 1"))
+    except Exception:
+        db_status = "error"
+
     return HealthResp(
         status="ok",
         version=settings.api_version,
         timestamp=datetime.utcnow(),
+        database=db_status,
     )
 
 
