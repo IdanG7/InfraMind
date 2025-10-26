@@ -9,6 +9,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from .config import settings
 from .routers import builds, features, health, optimize
 from .storage.postgres import engine, Base
+from .middleware.rate_limit import setup_rate_limiting
+from .middleware.metrics import metrics_middleware, metrics_endpoint
 
 
 @asynccontextmanager
@@ -26,20 +28,29 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS
+# Middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # TODO: Configure for production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Add Prometheus metrics middleware
+app.middleware("http")(metrics_middleware)
+
+# Setup rate limiting (uses Redis for distributed rate limiting)
+setup_rate_limiting(app)
 
 # Routers
 app.include_router(health.router, tags=["health"])
 app.include_router(builds.router, prefix="/builds", tags=["builds"])
 app.include_router(optimize.router, tags=["optimize"])
 app.include_router(features.router, prefix="/features", tags=["features"])
+
+# Prometheus metrics endpoint
+app.add_api_route("/metrics", metrics_endpoint, methods=["GET"], include_in_schema=False)
 
 
 @app.get("/")
