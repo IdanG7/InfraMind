@@ -25,7 +25,11 @@ def test_root():
 
 def test_optimize_requires_auth():
     """Test /optimize requires authentication"""
-    response = client.post("/optimize", json={})
+    payload = {
+        "pipeline": "test/pipeline",
+        "context": {"tool": "cmake"},
+    }
+    response = client.post("/optimize", json=payload)
     assert response.status_code == 403
 
 

@@ -74,3 +74,43 @@ class HealthResp(BaseModel):
     status: str
     version: str
     timestamp: datetime
+    database: str | None = None
+
+
+class RunStepReq(BaseModel):
+    """Run step data"""
+
+    name: str
+    start_time: str
+    end_time: str
+    duration_s: float
+    cpu_usage_pct: float
+    rss_max_bytes: int
+    io_r_bytes: int
+    io_w_bytes: int
+    exit_code: int
+
+
+class RunIngestReq(BaseModel):
+    """Complete run ingestion request"""
+
+    pipeline: str
+    build_number: int
+    git_sha: str
+    git_branch: str
+    start_time: str
+    end_time: str
+    duration_s: float
+    status: str
+    tool: str
+    concurrency: int
+    cpu_req: int
+    mem_req_gb: int
+    steps: list[RunStepReq]
+
+
+class RunIngestResp(BaseModel):
+    """Run ingestion response"""
+
+    status: str
+    run_id: int

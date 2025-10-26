@@ -1,9 +1,12 @@
 """Feature engineering"""
 
-from typing import Any
+from typing import Any, TYPE_CHECKING
 from sqlalchemy.orm import Session
 
 from ..models.orm import Run, Step
+
+if TYPE_CHECKING:
+    from ..models.schemas import RunStepReq
 
 
 def compute_features(run_id: str, db: Session) -> dict[str, Any]:
@@ -79,3 +82,26 @@ def build_feature_matrix(runs: list[Run], db: Session) -> tuple[list[dict], list
             y.append(run.duration_s)
 
     return X, y
+
+
+def extract_features(run: Run, steps: list["RunStepReq"]) -> dict[str, Any]:
+    """Extract features from run and step data (for ingestion)"""
+    # Aggregate step metrics
+    max_rss = max((s.rss_max_bytes for s in steps), default=0)
+    total_io_read = sum(s.io_r_bytes for s in steps)
+    total_io_write = sum(s.io_w_bytes for s in steps)
+    total_cpu = sum(s.cpu_usage_pct for s in steps)
+
+    # Step durations
+    step_durations = [s.duration_s for s in steps]
+    avg_step_duration = sum(step_durations) / len(step_durations) if step_durations else 0
+    max_step_duration = max(step_durations, default=0)
+
+    return {
+        "max_rss_gb": max_rss / (1024**3),
+        "total_io_gb": (total_io_read + total_io_write) / (1024**3),
+        "num_steps": len(steps),
+        "avg_step_duration_s": avg_step_duration,
+        "max_step_duration_s": max_step_duration,
+        "total_cpu_s": total_cpu,
+    }

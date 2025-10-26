@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
-from .routers import builds, features, health, optimize
+from .routers import builds, features, health, optimize, runs
 from .storage.postgres import engine, Base
 from .middleware.rate_limit import setup_rate_limiting
 from .middleware.metrics import metrics_middleware, metrics_endpoint
@@ -46,6 +46,7 @@ setup_rate_limiting(app)
 # Routers
 app.include_router(health.router, tags=["health"])
 app.include_router(builds.router, prefix="/builds", tags=["builds"])
+app.include_router(runs.router, tags=["runs"])
 app.include_router(optimize.router, tags=["optimize"])
 app.include_router(features.router, prefix="/features", tags=["features"])
 
