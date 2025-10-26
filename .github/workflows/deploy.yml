@@ -17,8 +17,8 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  API_IMAGE_NAME: ${{ github.repository }}/api
-  AGENT_IMAGE_NAME: ${{ github.repository }}/agent
+  API_IMAGE_NAME: ${{ github.repository_owner }}/infraread-api
+  AGENT_IMAGE_NAME: ${{ github.repository_owner }}/infraread-agent
 
 jobs:
   build-and-push:

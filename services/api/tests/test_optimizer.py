@@ -1,6 +1,5 @@
 """Tests for ML optimizer"""
 
-import pytest
 from app.ml.optimizer import suggest, clamp, candidate_configs
 
 

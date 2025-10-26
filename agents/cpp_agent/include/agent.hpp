@@ -4,6 +4,7 @@
 #include <memory>
 #include <atomic>
 #include <thread>
+#include <vector>
 
 namespace im {
 

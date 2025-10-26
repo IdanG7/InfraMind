@@ -3,13 +3,11 @@
 from datetime import datetime
 from typing import Any
 
-import numpy as np
 import pandas as pd
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_absolute_error, r2_score
 from sklearn.model_selection import train_test_split
 
-from ..config import settings
 from ..models.orm import Model, Pipeline, Run
 from ..storage.postgres import SessionLocal
 from .features import build_feature_matrix
@@ -17,7 +15,9 @@ from .model_store import save_model
 from ..storage.redis import set_active_model_version
 
 
-def prepare_data(pipeline_name: str | None = None, limit: int = 500) -> tuple[pd.DataFrame, pd.Series]:
+def prepare_data(
+    pipeline_name: str | None = None, limit: int = 500
+) -> tuple[pd.DataFrame, pd.Series]:
     """Prepare training data"""
     session = SessionLocal()
 

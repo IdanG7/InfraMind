@@ -2,7 +2,6 @@
 
 from prometheus_client import Counter, Histogram, Gauge, generate_latest, CONTENT_TYPE_LATEST
 from fastapi import Request, Response
-from fastapi.responses import Response as FastAPIResponse
 import time
 
 # Request metrics
@@ -87,7 +86,7 @@ async def metrics_middleware(request: Request, call_next):
     try:
         response = await call_next(request)
         status_code = response.status_code
-    except Exception as e:
+    except Exception:
         status_code = 500
         raise
     finally:

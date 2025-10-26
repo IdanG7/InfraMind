@@ -13,7 +13,10 @@ import os
 TEST_DB_URL = os.getenv("TEST_DATABASE_URL", "sqlite:///./test.db")
 
 # Create test engine
-engine = create_engine(TEST_DB_URL, connect_args={"check_same_thread": False} if "sqlite" in TEST_DB_URL else {})
+engine = create_engine(
+    TEST_DB_URL,
+    connect_args={"check_same_thread": False} if "sqlite" in TEST_DB_URL else {},
+)
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
@@ -203,7 +206,12 @@ def test_multiple_runs_same_pipeline(client, db_session):
     assert len(runs) == 3
 
     # Verify features for all runs
-    features = db_session.query(Feature).join(Run).filter(Run.pipeline == "multi-run/pipeline").all()
+    features = (
+        db_session.query(Feature)
+        .join(Run)
+        .filter(Run.pipeline == "multi-run/pipeline")
+        .all()
+    )
     assert len(features) == 3
 
 

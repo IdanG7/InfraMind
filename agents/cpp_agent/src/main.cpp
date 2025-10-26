@@ -13,7 +13,7 @@ void signal_handler(int signal) {
     }
 }
 
-int main(int argc, char** argv) {
+int main(int /* argc */, char** /* argv */) {
     std::cout << "InfraMind Telemetry Agent v0.1.0\n";
 
     // Setup signal handlers
