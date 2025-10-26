@@ -99,7 +99,8 @@ void PrometheusExporter::serve() {
 
         // Read request (simple, not parsing)
         char buffer[1024] = {0};
-        read(client_fd, buffer, sizeof(buffer));
+        ssize_t bytes_read = read(client_fd, buffer, sizeof(buffer));
+        (void)bytes_read;  // Intentionally unused
 
         // Send response
         std::string metrics = format_metrics();
@@ -111,7 +112,8 @@ void PrometheusExporter::serve() {
         response << metrics;
 
         std::string resp_str = response.str();
-        write(client_fd, resp_str.c_str(), resp_str.size());
+        ssize_t bytes_written = write(client_fd, resp_str.c_str(), resp_str.size());
+        (void)bytes_written;  // Intentionally unused
         close(client_fd);
     }
 
