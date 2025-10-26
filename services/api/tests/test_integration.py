@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from app.main import app
-from app.models.orm import Base, Run, Step, Feature, Pipeline
+from app.models.orm import Base, Run, Step, Feature
 from app.deps import get_db
 import os
 
@@ -210,7 +210,7 @@ def test_multiple_runs_same_pipeline(client, db_session):
     features = (
         db_session.query(Feature)
         .join(Run)
-        .filter(Run.pipeline_id == pipeline.id)
+        .filter(Run.pipeline == "multi-run/pipeline")
         .all()
     )
     assert len(features) == 3
