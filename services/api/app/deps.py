@@ -22,8 +22,8 @@ def get_db() -> Generator[Session, None, None]:
         db.close()
 
 
-def verify_api_key(api_key: str = Security(api_key_header)) -> str:
+def verify_api_key(api_key: str | None = Security(api_key_header)) -> str:
     """Verify API key"""
-    if api_key != settings.api_key:
+    if not api_key or api_key != settings.api_key:
         raise HTTPException(status_code=403, detail="Invalid API key")
     return api_key

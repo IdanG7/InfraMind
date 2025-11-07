@@ -3,7 +3,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from ..deps import get_db
+from ..deps import get_db, verify_api_key
 from ..ml.optimizer import suggest
 from ..models.schemas import OptimizeReq, OptimizeResp
 from ..models.orm import Suggestion, Pipeline
@@ -12,7 +12,7 @@ from ..storage.redis import cache_suggestion
 router = APIRouter()
 
 
-@router.post("/optimize", response_model=OptimizeResp)
+@router.post("/optimize", response_model=OptimizeResp, dependencies=[Depends(verify_api_key)])
 async def optimize(req: OptimizeReq, db: Session = Depends(get_db)) -> OptimizeResp:
     """Get optimization suggestions"""
     # Call ML optimizer

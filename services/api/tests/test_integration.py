@@ -119,7 +119,7 @@ def test_complete_workflow(client, db_session):
     # Step 2: Verify run was stored
     run = db_session.query(Run).filter(Run.id == run_id).first()
     assert run is not None
-    assert run.pipeline == "integration-test/pipeline"
+    assert run.pipeline.name == "integration-test/pipeline"
     assert run.build_number == 1
     assert run.status == "success"
     assert len(run.steps) == 3
@@ -202,7 +202,8 @@ def test_multiple_runs_same_pipeline(client, db_session):
         assert response.status_code == 201
 
     # Verify all runs were stored
-    runs = db_session.query(Run).filter(Run.pipeline == "multi-run/pipeline").all()
+    pipeline = db_session.query(Pipeline).filter(Pipeline.name == "multi-run/pipeline").first()
+    runs = db_session.query(Run).filter(Run.pipeline_id == pipeline.id).all()
     assert len(runs) == 3
 
     # Verify features for all runs
@@ -252,7 +253,8 @@ def test_failed_run_ingestion(client, db_session):
     assert response.status_code == 201
 
     # Verify failed run was stored
-    run = db_session.query(Run).filter(Run.pipeline == "failed-run/pipeline").first()
+    pipeline = db_session.query(Pipeline).filter(Pipeline.name == "failed-run/pipeline").first()
+    run = db_session.query(Run).filter(Run.pipeline_id == pipeline.id).first()
     assert run is not None
     assert run.status == "failed"
     assert run.steps[0].exit_code == 1

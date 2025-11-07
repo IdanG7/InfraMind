@@ -39,13 +39,15 @@ class Run(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     pipeline_id = Column(Integer, ForeignKey("pipelines.id"), nullable=False)
-    run_id = Column(String, unique=True, nullable=False, index=True)
+    run_id = Column(String, unique=True, nullable=True, index=True)
+    build_number = Column(Integer, nullable=True)
     status = Column(String, nullable=False)  # success, failure, aborted
     duration_s = Column(Float)
     started_at = Column(DateTime, default=datetime.utcnow)
     finished_at = Column(DateTime)
     image = Column(String)
     node = Column(String)
+    tool = Column(String)
     cpu_req = Column(Float)
     mem_req_gb = Column(Float)
     concurrency = Column(Integer)
@@ -69,18 +71,21 @@ class Step(Base):
     __tablename__ = "steps"
 
     id = Column(Integer, primary_key=True, index=True)
-    run_id = Column(String, ForeignKey("runs.run_id"), nullable=False)
-    stage = Column(String, nullable=False)
-    step = Column(String, nullable=False)
+    run_id = Column(Integer, ForeignKey("runs.id"), nullable=False)
+    name = Column(String)
+    stage = Column(String)
+    step = Column(String)
     span_id = Column(String)
     start_ts = Column(DateTime)
     end_ts = Column(DateTime)
+    duration_s = Column(Float)
     cpu_time_s = Column(Float)
     rss_max_bytes = Column(BigInteger)
     io_r_bytes = Column(BigInteger)
     io_w_bytes = Column(BigInteger)
     cache_hits = Column(Integer, default=0)
     cache_misses = Column(Integer, default=0)
+    exit_code = Column(Integer)
 
     run = relationship("Run", back_populates="steps")
 
@@ -93,8 +98,15 @@ class Feature(Base):
     __tablename__ = "features"
 
     id = Column(Integer, primary_key=True, index=True)
-    run_id = Column(String, ForeignKey("runs.run_id"), nullable=False, index=True)
-    vector = Column(JSON, nullable=False)
+    run_id = Column(Integer, ForeignKey("runs.id"), nullable=False, index=True)
+    tool = Column(String)
+    max_rss_gb = Column(Float)
+    total_io_gb = Column(Float)
+    num_steps = Column(Integer)
+    avg_step_duration_s = Column(Float)
+    max_step_duration_s = Column(Float)
+    total_cpu_s = Column(Float)
+    vector = Column(JSON)
     label = Column(JSON)
     created_at = Column(DateTime, default=datetime.utcnow)
 
