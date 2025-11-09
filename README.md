@@ -52,11 +52,22 @@ docker-compose up -d
 docker-compose ps
 ```
 
+### Option 3: Test Everything
+
+```bash
+# Quick test script
+./test.sh
+
+# This will test all components and verify everything works
+```
+
 ### Access the Services
 
 - **API Documentation**: http://localhost:8081/docs
 - **Grafana Dashboards**: http://localhost:3001 (admin/admin)
 - **Prometheus**: http://localhost:9092
+
+📘 **Detailed Testing Guide**: See [TESTING.md](TESTING.md) for comprehensive testing instructions
 
 ---
 
