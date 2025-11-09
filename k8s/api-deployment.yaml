@@ -1,3 +1,13 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: inframind-api
+  namespace: infra
+  labels:
+    app: inframind
+    component: api
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -6,6 +16,7 @@ metadata:
   labels:
     app: inframind-api
     component: api
+    version: v0.1.0
 spec:
   replicas: 3
   strategy:
@@ -16,26 +27,64 @@ spec:
   selector:
     matchLabels:
       app: inframind-api
+      component: api
   template:
     metadata:
       labels:
         app: inframind-api
         component: api
+        version: v0.1.0
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
     spec:
+      serviceAccountName: inframind-api
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - inframind-api
+              topologyKey: kubernetes.io/hostname
       containers:
       - name: api
-        image: ghcr.io/yourusername/inframind/api:latest
-        imagePullPolicy: Always
+        image: ghcr.io/yourusername/inframind/api:v0.1.0  # Pin to specific version
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 1000
+          capabilities:
+            drop:
+            - ALL
         ports:
         - containerPort: 8080
           name: http
+          protocol: TCP
+        - containerPort: 9090
+          name: metrics
           protocol: TCP
         env:
         - name: ENVIRONMENT
           value: "production"
         - name: LOG_LEVEL
           value: "warning"
-        - name: API_KEY
+        - name: LOG_FORMAT
+          value: "json"
+        - name: INFRAMIND_API_KEY
           valueFrom:
             secretKeyRef:
               name: inframind-secrets
@@ -78,36 +127,63 @@ spec:
           value: "20"
         - name: DB_MAX_OVERFLOW
           value: "40"
+        - name: DB_POOL_RECYCLE
+          value: "3600"
+        - name: CORS_ORIGINS
+          value: "https://grafana.inframind.yourdomain.com"
         resources:
           requests:
             memory: "512Mi"
             cpu: "500m"
+            ephemeral-storage: "1Gi"
           limits:
             memory: "2Gi"
             cpu: "2000m"
+            ephemeral-storage: "2Gi"
         livenessProbe:
           httpGet:
-            path: /healthz
+            path: /health
             port: 8080
+            scheme: HTTP
           initialDelaySeconds: 30
           periodSeconds: 10
           timeoutSeconds: 5
           failureThreshold: 3
+          successThreshold: 1
         readinessProbe:
           httpGet:
-            path: /readyz
+            path: /health
             port: 8080
+            scheme: HTTP
           initialDelaySeconds: 10
           periodSeconds: 5
           timeoutSeconds: 3
           failureThreshold: 2
+          successThreshold: 1
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 0
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 30
         volumeMounts:
         - name: models
           mountPath: /app/models
+        - name: tmp
+          mountPath: /tmp
+        - name: cache
+          mountPath: /app/.cache
       volumes:
       - name: models
         persistentVolumeClaim:
           claimName: inframind-models-pvc
+      - name: tmp
+        emptyDir: {}
+      - name: cache
+        emptyDir: {}
 ---
 apiVersion: v1
 kind: Service
@@ -116,25 +192,101 @@ metadata:
   namespace: infra
   labels:
     app: inframind-api
+    component: api
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8080"
 spec:
   type: ClusterIP
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800
   ports:
   - port: 8080
     targetPort: 8080
     protocol: TCP
     name: http
+  - port: 9090
+    targetPort: 9090
+    protocol: TCP
+    name: metrics
   selector:
     app: inframind-api
+    component: api
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: inframind-models-pvc
   namespace: infra
+  labels:
+    app: inframind
+    component: storage
 spec:
   accessModes:
-    - ReadWriteMany
+    - ReadWriteMany  # Required for multi-replica deployment
   resources:
     requests:
       storage: 10Gi
+  # Note: Change storageClassName based on your cloud provider:
+  # - AWS: gp3, efs-sc (for RWX)
+  # - GCP: standard-rwo, filestore (for RWX)
+  # - Azure: managed-premium, azurefile (for RWX)
+  # - On-prem: nfs, cephfs
   storageClassName: standard
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: inframind-api-pdb
+  namespace: infra
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: inframind-api
+      component: api
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: inframind-api-hpa
+  namespace: infra
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: inframind-api
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 50
+        periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 30
+      - type: Pods
+        value: 2
+        periodSeconds: 30
+      selectPolicy: Max

@@ -1,0 +1,251 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: inframind-agent
+  namespace: infra
+  labels:
+    app: inframind
+    component: agent
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: inframind-agent
+  labels:
+    app: inframind
+    component: agent
+rules:
+- apiGroups: [""]
+  resources:
+  - nodes
+  - nodes/stats
+  - pods
+  verbs: ["get", "list"]
+- apiGroups: [""]
+  resources:
+  - nodes/metrics
+  - pods/metrics
+  verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: inframind-agent
+  labels:
+    app: inframind
+    component: agent
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: inframind-agent
+subjects:
+- kind: ServiceAccount
+  name: inframind-agent
+  namespace: infra
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: inframind-agent-config
+  namespace: infra
+  labels:
+    app: inframind
+    component: agent
+data:
+  agent.yaml: |
+    # InfraMind Agent Configuration
+    server:
+      port: 9102
+      host: "0.0.0.0"
+
+    collectors:
+      cpu:
+        enabled: true
+        interval: 5s
+      memory:
+        enabled: true
+        interval: 5s
+      io:
+        enabled: true
+        interval: 10s
+      cache:
+        enabled: true
+        interval: 30s
+        types:
+          - ccache
+          - bazel
+          - docker
+
+    exporters:
+      prometheus:
+        enabled: true
+        port: 9102
+        path: /metrics
+      logging:
+        enabled: true
+        level: info
+        format: json
+
+    api:
+      endpoint: http://inframind-api.infra.svc.cluster.local:8080
+      enabled: false  # Optional: send metrics directly to API
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: inframind-agent
+  namespace: infra
+  labels:
+    app: inframind-agent
+    component: agent
+    version: v0.1.0
+spec:
+  selector:
+    matchLabels:
+      app: inframind-agent
+      component: agent
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app: inframind-agent
+        component: agent
+        version: v0.1.0
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9102"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: inframind-agent
+      hostNetwork: false
+      hostPID: true  # Required to collect host-level metrics
+      hostIPC: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534  # nobody user
+        fsGroup: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      tolerations:
+      # Run on all nodes including masters (optional)
+      - key: node-role.kubernetes.io/master
+        operator: Exists
+        effect: NoSchedule
+      - key: node-role.kubernetes.io/control-plane
+        operator: Exists
+        effect: NoSchedule
+      containers:
+      - name: agent
+        image: ghcr.io/yourusername/inframind/agent:v0.1.0
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 65534
+          capabilities:
+            drop:
+            - ALL
+            add:
+            - SYS_PTRACE  # Required for process monitoring
+        ports:
+        - containerPort: 9102
+          name: metrics
+          protocol: TCP
+        env:
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: LOG_LEVEL
+          value: "info"
+        - name: AGENT_CONFIG
+          value: "/etc/inframind/agent.yaml"
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+            ephemeral-storage: "100Mi"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+            ephemeral-storage: "200Mi"
+        volumeMounts:
+        - name: config
+          mountPath: /etc/inframind
+          readOnly: true
+        - name: proc
+          mountPath: /host/proc
+          readOnly: true
+        - name: sys
+          mountPath: /host/sys
+          readOnly: true
+        - name: tmp
+          mountPath: /tmp
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 9102
+            scheme: HTTP
+          initialDelaySeconds: 15
+          periodSeconds: 20
+          timeoutSeconds: 3
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 9102
+            scheme: HTTP
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 2
+      volumes:
+      - name: config
+        configMap:
+          name: inframind-agent-config
+      - name: proc
+        hostPath:
+          path: /proc
+          type: Directory
+      - name: sys
+        hostPath:
+          path: /sys
+          type: Directory
+      - name: tmp
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: inframind-agent
+  namespace: infra
+  labels:
+    app: inframind-agent
+    component: agent
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9102"
+spec:
+  type: ClusterIP
+  clusterIP: None  # Headless service for DaemonSet
+  ports:
+  - port: 9102
+    targetPort: 9102
+    protocol: TCP
+    name: metrics
+  selector:
+    app: inframind-agent
+    component: agent
