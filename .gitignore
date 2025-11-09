@@ -86,3 +86,7 @@ secrets.yaml
 .env.local
 .env.production
 .env.staging
+.inframind-credentials
+
+# Editor/Tool configs
+.claude/
