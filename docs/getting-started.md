@@ -164,12 +164,7 @@ git commit -m "feat: add production monitoring with Prometheus and rate limiting
 - Implemented distributed rate limiting via Redis (100 req/min)
 - Enhanced health checks with dependency verification
 - Created 3 Grafana dashboards (28 panels)
-- Updated all documentation for production release
-- Added RELEASE_v0.1.0.md, PRE_RELEASE_CHECKLIST.md, PRODUCTION_READY.md
-
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
-
-Co-Authored-By: Claude <noreply@anthropic.com>"
+- Updated all documentation for production release"
 
 # Check your commit
 git log -1
@@ -511,11 +506,7 @@ git status
 git add .
 
 # Commit
-git commit -m "feat: add production monitoring and release v0.1.0
-
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
-
-Co-Authored-By: Claude <noreply@anthropic.com>"
+git commit -m "feat: add production monitoring and release v0.1.0"
 
 # Create GitHub repo and push
 gh repo create InfraMind --public --source=. --remote=origin
