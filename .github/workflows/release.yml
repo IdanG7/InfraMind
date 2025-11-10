@@ -1,0 +1,426 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+    inputs:
+      version_bump:
+        description: 'Version bump type (major, minor, patch, or auto)'
+        required: false
+        default: 'auto'
+        type: choice
+        options:
+          - auto
+          - major
+          - minor
+          - patch
+
+permissions:
+  contents: write
+  packages: write
+  pull-requests: write
+
+jobs:
+  # Analyze commits and determine version bump
+  analyze-version:
+    name: Analyze Version Bump
+    runs-on: ubuntu-latest
+    outputs:
+      should_release: ${{ steps.check.outputs.should_release }}
+      version_bump: ${{ steps.check.outputs.version_bump }}
+      new_version: ${{ steps.check.outputs.new_version }}
+      changelog: ${{ steps.check.outputs.changelog }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get latest tag
+        id: get_tag
+        run: |
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "latest_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+          echo "Latest tag: $LATEST_TAG"
+
+      - name: Analyze commits for version bump
+        id: check
+        run: |
+          LATEST_TAG="${{ steps.get_tag.outputs.latest_tag }}"
+
+          # Get commits since last tag
+          if [ "$LATEST_TAG" = "v0.0.0" ]; then
+            COMMITS=$(git log --pretty=format:"%s" HEAD)
+          else
+            COMMITS=$(git log --pretty=format:"%s" ${LATEST_TAG}..HEAD)
+          fi
+
+          echo "Commits since last release:"
+          echo "$COMMITS"
+
+          # Determine version bump based on conventional commits
+          BUMP_TYPE="${{ github.event.inputs.version_bump }}"
+
+          if [ "$BUMP_TYPE" = "auto" ] || [ -z "$BUMP_TYPE" ]; then
+            if echo "$COMMITS" | grep -qE "^(BREAKING CHANGE|feat!|fix!|refactor!)"; then
+              BUMP_TYPE="major"
+            elif echo "$COMMITS" | grep -qE "^feat"; then
+              BUMP_TYPE="minor"
+            elif echo "$COMMITS" | grep -qE "^(fix|perf|refactor)"; then
+              BUMP_TYPE="patch"
+            else
+              BUMP_TYPE="none"
+            fi
+          fi
+
+          echo "Detected bump type: $BUMP_TYPE"
+
+          # Calculate new version
+          CURRENT_VERSION=${LATEST_TAG#v}
+          IFS='.' read -r -a VERSION_PARTS <<< "$CURRENT_VERSION"
+          MAJOR=${VERSION_PARTS[0]:-0}
+          MINOR=${VERSION_PARTS[1]:-0}
+          PATCH=${VERSION_PARTS[2]:-0}
+
+          if [ "$BUMP_TYPE" = "major" ]; then
+            MAJOR=$((MAJOR + 1))
+            MINOR=0
+            PATCH=0
+          elif [ "$BUMP_TYPE" = "minor" ]; then
+            MINOR=$((MINOR + 1))
+            PATCH=0
+          elif [ "$BUMP_TYPE" = "patch" ]; then
+            PATCH=$((PATCH + 1))
+          fi
+
+          NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+
+          # Generate changelog
+          CHANGELOG=$(cat << EOF
+          ## Changes in v${NEW_VERSION}
+
+          $(echo "$COMMITS" | sed 's/^/- /')
+
+          **Full Changelog**: https://github.com/${{ github.repository }}/compare/${LATEST_TAG}...v${NEW_VERSION}
+          EOF
+          )
+
+          # Set outputs
+          if [ "$BUMP_TYPE" = "none" ]; then
+            echo "should_release=false" >> $GITHUB_OUTPUT
+          else
+            echo "should_release=true" >> $GITHUB_OUTPUT
+          fi
+
+          echo "version_bump=$BUMP_TYPE" >> $GITHUB_OUTPUT
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+  # Build and test everything before release
+  test:
+    name: Run Tests
+    needs: analyze-version
+    if: needs.analyze-version.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: inframind
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: inframind
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        working-directory: ./services/api
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-cov
+
+      - name: Run tests
+        working-directory: ./services/api
+        env:
+          DATABASE_URL: postgresql://inframind:test@localhost:5432/inframind
+          REDIS_URL: redis://localhost:6379/0
+          API_KEY: test-key
+          ENVIRONMENT: test
+        run: |
+          pytest tests/ -v --cov=app
+
+  # Build CLI package
+  build-cli:
+    name: Build CLI Package
+    needs: [analyze-version, test]
+    if: needs.analyze-version.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Update version in setup.py
+        working-directory: ./cli
+        run: |
+          VERSION="${{ needs.analyze-version.outputs.new_version }}"
+          sed -i "s/version=\"[^\"]*\"/version=\"$VERSION\"/" setup.py
+
+      - name: Build package
+        working-directory: ./cli
+        run: |
+          pip install build
+          python -m build
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: cli-package
+          path: cli/dist/*
+
+  # Build Docker images
+  build-docker:
+    name: Build Docker Images
+    needs: [analyze-version, test]
+    if: needs.analyze-version.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set image names
+        id: image-names
+        run: |
+          REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          echo "api_image=ghcr.io/${REPO_LOWER}/api" >> $GITHUB_OUTPUT
+          echo "agent_image=ghcr.io/${REPO_LOWER}/agent" >> $GITHUB_OUTPUT
+
+      - name: Build and push API image
+        uses: docker/build-push-action@v5
+        with:
+          context: services/api
+          file: services/api/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.image-names.outputs.api_image }}:latest
+            ${{ steps.image-names.outputs.api_image }}:v${{ needs.analyze-version.outputs.new_version }}
+            ${{ steps.image-names.outputs.api_image }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push Agent image
+        uses: docker/build-push-action@v5
+        with:
+          context: agents/cpp_agent
+          file: agents/cpp_agent/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.image-names.outputs.agent_image }}:latest
+            ${{ steps.image-names.outputs.agent_image }}:v${{ needs.analyze-version.outputs.new_version }}
+            ${{ steps.image-names.outputs.agent_image }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # Create GitHub Release
+  create-release:
+    name: Create GitHub Release
+    needs: [analyze-version, test, build-cli, build-docker]
+    if: needs.analyze-version.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download CLI artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: cli-package
+          path: ./release-artifacts
+
+      - name: Create Git Tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "v${{ needs.analyze-version.outputs.new_version }}" -m "Release v${{ needs.analyze-version.outputs.new_version }}"
+          git push origin "v${{ needs.analyze-version.outputs.new_version }}"
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ needs.analyze-version.outputs.new_version }}
+          release_name: InfraMind v${{ needs.analyze-version.outputs.new_version }}
+          body: |
+            ${{ needs.analyze-version.outputs.changelog }}
+
+            ## 📦 Installation
+
+            ### CLI Tool
+            ```bash
+            pip install inframind-cli==${{ needs.analyze-version.outputs.new_version }}
+            ```
+
+            ### Docker Images
+            ```bash
+            # API
+            docker pull ghcr.io/${{ github.repository }}/api:v${{ needs.analyze-version.outputs.new_version }}
+
+            # Agent
+            docker pull ghcr.io/${{ github.repository }}/agent:v${{ needs.analyze-version.outputs.new_version }}
+            ```
+
+            ### One-Command Install
+            ```bash
+            curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/v${{ needs.analyze-version.outputs.new_version }}/install.sh | bash
+            ```
+
+            ## 🎯 What's Changed
+
+            See the [full changelog](https://github.com/${{ github.repository }}/compare/v${{ needs.analyze-version.outputs.new_version }}...v${{ needs.analyze-version.outputs.new_version }})
+          draft: false
+          prerelease: false
+
+      - name: Upload CLI Wheel
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./release-artifacts/inframind_cli-${{ needs.analyze-version.outputs.new_version }}-py3-none-any.whl
+          asset_name: inframind_cli-${{ needs.analyze-version.outputs.new_version }}-py3-none-any.whl
+          asset_content_type: application/zip
+
+      - name: Upload CLI Tarball
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./release-artifacts/inframind-cli-${{ needs.analyze-version.outputs.new_version }}.tar.gz
+          asset_name: inframind-cli-${{ needs.analyze-version.outputs.new_version }}.tar.gz
+          asset_content_type: application/gzip
+
+  # Publish to PyPI
+  publish-pypi:
+    name: Publish CLI to PyPI
+    needs: [analyze-version, create-release]
+    if: needs.analyze-version.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/inframind-cli
+    permissions:
+      id-token: write  # For trusted publishing
+    steps:
+      - name: Download CLI artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: cli-package
+          path: dist
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          skip-existing: true
+          # Use trusted publishing (no password needed if configured)
+          # Or use password: ${{ secrets.PYPI_API_TOKEN }}
+
+  # Update version in repository
+  update-version-files:
+    name: Update Version Files
+    needs: [analyze-version, create-release]
+    if: needs.analyze-version.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update version files
+        run: |
+          VERSION="${{ needs.analyze-version.outputs.new_version }}"
+
+          # Update CLI setup.py
+          sed -i "s/version=\"[^\"]*\"/version=\"$VERSION\"/" cli/setup.py
+
+          # Create VERSION file
+          echo "$VERSION" > VERSION
+
+          # Update K8s manifests (if needed)
+          # sed -i "s/image:.*:v.*/image: ghcr.io\/${{ github.repository }}\/api:v$VERSION/" k8s/api-deployment.yaml
+
+      - name: Commit version updates
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add VERSION cli/setup.py
+          git commit -m "chore: bump version to ${{ needs.analyze-version.outputs.new_version }} [skip ci]" || echo "No changes"
+          git push || echo "Nothing to push"
+
+  # Post-release notifications
+  notify:
+    name: Notify Release
+    needs: [analyze-version, create-release, publish-pypi]
+    if: needs.analyze-version.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify success
+        run: |
+          echo "🎉 Successfully released v${{ needs.analyze-version.outputs.new_version }}"
+          echo "- GitHub Release: https://github.com/${{ github.repository }}/releases/tag/v${{ needs.analyze-version.outputs.new_version }}"
+          echo "- PyPI: https://pypi.org/project/inframind-cli/${{ needs.analyze-version.outputs.new_version }}/"
+          echo "- Docker: ghcr.io/${{ github.repository }}/api:v${{ needs.analyze-version.outputs.new_version }}"
+
+      # Add Slack/Discord notification here if needed
+      # - name: Notify Slack
+      #   uses: slackapi/slack-github-action@v1
+      #   with:
+      #     payload: |
+      #       {
+      #         "text": "🚀 InfraMind v${{ needs.analyze-version.outputs.new_version }} released!"
+      #       }
+      #   env:
+      #     SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

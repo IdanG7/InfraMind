@@ -1,0 +1,202 @@
+name: Validate PR
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+jobs:
+  validate-title:
+    name: Validate PR Title
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check PR title follows Conventional Commits
+        uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            docs
+            style
+            refactor
+            perf
+            test
+            build
+            ci
+            chore
+            revert
+          scopes: |
+            api
+            cli
+            agent
+            k8s
+            docs
+            ci
+            docker
+          requireScope: false
+          subjectPattern: ^[A-Z].+$
+          subjectPatternError: |
+            The subject "{subject}" found in the pull request title "{title}"
+            didn't match the configured pattern. Please ensure that the subject
+            starts with an uppercase character.
+          wip: true
+          validateSingleCommit: false
+
+  lint-commits:
+    name: Lint Commit Messages
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check commit messages
+        uses: wagoid/commitlint-github-action@v5
+        with:
+          configFile: .github/commitlint.config.js
+
+  check-breaking-changes:
+    name: Check for Breaking Changes
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.base.ref == 'main' || github.event.pull_request.base.ref == 'master'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for breaking changes
+        id: breaking
+        run: |
+          # Check if PR title or any commit message contains breaking change indicators
+          BREAKING=false
+
+          # Check PR title
+          if echo "${{ github.event.pull_request.title }}" | grep -qE "(BREAKING CHANGE|!)"; then
+            BREAKING=true
+          fi
+
+          # Check commit messages
+          if git log --pretty=format:"%s" ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }} | grep -qE "(BREAKING CHANGE|!)"; then
+            BREAKING=true
+          fi
+
+          if [ "$BREAKING" = true ]; then
+            echo "has_breaking=true" >> $GITHUB_OUTPUT
+            echo "⚠️ This PR contains BREAKING CHANGES"
+          else
+            echo "has_breaking=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Comment on breaking changes
+        if: steps.breaking.outputs.has_breaking == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## ⚠️ Breaking Changes Detected
+
+              This PR contains breaking changes which will trigger a **MAJOR** version bump.
+
+              Please ensure:
+              - [ ] Breaking changes are documented in the PR description
+              - [ ] Migration guide is provided (if applicable)
+              - [ ] All affected users are notified
+              - [ ] Changelog entry includes migration instructions
+
+              See [COMMIT_CONVENTION.md](../.github/COMMIT_CONVENTION.md) for details.
+              `
+            })
+
+  preview-version:
+    name: Preview Next Version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Calculate next version
+        id: version
+        run: |
+          # Get current version
+          CURRENT_VERSION=$(cat VERSION || echo "0.0.0")
+
+          # Check PR title and commits for version bump type
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          COMMITS=$(git log --pretty=format:"%s" ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }})
+
+          # Combine for analysis
+          ALL_TEXT="$PR_TITLE
+          $COMMITS"
+
+          # Determine bump type
+          if echo "$ALL_TEXT" | grep -qE "^(BREAKING CHANGE|feat!|fix!|refactor!)"; then
+            BUMP="major"
+          elif echo "$ALL_TEXT" | grep -qE "^feat"; then
+            BUMP="minor"
+          elif echo "$ALL_TEXT" | grep -qE "^(fix|perf)"; then
+            BUMP="patch"
+          else
+            BUMP="none"
+          fi
+
+          # Calculate new version
+          IFS='.' read -r -a VERSION_PARTS <<< "$CURRENT_VERSION"
+          MAJOR=${VERSION_PARTS[0]:-0}
+          MINOR=${VERSION_PARTS[1]:-0}
+          PATCH=${VERSION_PARTS[2]:-0}
+
+          if [ "$BUMP" = "major" ]; then
+            MAJOR=$((MAJOR + 1))
+            MINOR=0
+            PATCH=0
+          elif [ "$BUMP" = "minor" ]; then
+            MINOR=$((MINOR + 1))
+            PATCH=0
+          elif [ "$BUMP" = "patch" ]; then
+            PATCH=$((PATCH + 1))
+          fi
+
+          NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+
+          echo "current=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+          echo "next=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "bump=$BUMP" >> $GITHUB_OUTPUT
+
+      - name: Comment version preview
+        if: steps.version.outputs.bump != 'none'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const current = '${{ steps.version.outputs.current }}';
+            const next = '${{ steps.version.outputs.next }}';
+            const bump = '${{ steps.version.outputs.bump }}';
+
+            const bumpEmoji = {
+              'major': '💥',
+              'minor': '✨',
+              'patch': '🐛'
+            };
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## 📦 Version Preview
+
+              When this PR is merged, it will trigger a **${bump.toUpperCase()}** version bump:
+
+              ${bumpEmoji[bump]} \`v${current}\` → \`v${next}\`
+
+              **What will be released:**
+              - 🐳 Docker images: \`ghcr.io/${context.repo.owner}/${context.repo.repo}/api:v${next}\`
+              - 📦 PyPI package: \`inframind-cli==${next}\`
+              - 📝 GitHub Release: \`v${next}\`
+
+              This is an automated preview. The actual release will be created when merged to main.
+              `
+            })
