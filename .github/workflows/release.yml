@@ -195,6 +195,7 @@ jobs:
         run: |
           VERSION="${{ needs.analyze-version.outputs.new_version }}"
           sed -i "s/version=\"[^\"]*\"/version=\"$VERSION\"/" setup.py
+          echo "$VERSION" > VERSION
 
       - name: Build package
         working-directory: ./cli
@@ -386,8 +387,9 @@ jobs:
           # Update CLI setup.py
           sed -i "s/version=\"[^\"]*\"/version=\"$VERSION\"/" cli/setup.py
 
-          # Create VERSION file
+          # Create VERSION files
           echo "$VERSION" > VERSION
+          echo "$VERSION" > cli/VERSION
 
           # Update K8s manifests (if needed)
           # sed -i "s/image:.*:v.*/image: ghcr.io\/${{ github.repository }}\/api:v$VERSION/" k8s/api-deployment.yaml
@@ -396,7 +398,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add VERSION cli/setup.py
+          git add VERSION cli/VERSION cli/setup.py
           git commit -m "chore: bump version to ${{ needs.analyze-version.outputs.new_version }} [skip ci]" || echo "No changes"
           git push || echo "Nothing to push"
 

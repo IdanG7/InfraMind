@@ -63,7 +63,7 @@ inframind = "inframind:main"
 py-modules = ["inframind"]
 
 [tool.setuptools.dynamic]
-version = {file = "../VERSION"}
+version = {file = "VERSION"}
 
 [tool.black]
 line-length = 88
