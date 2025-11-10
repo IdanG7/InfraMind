@@ -323,6 +323,9 @@ jobs:
           draft: false
           prerelease: false
 
+      - name: List downloaded artifacts
+        run: ls -la ./release-artifacts/
+
       - name: Upload CLI Wheel
         uses: actions/upload-release-asset@v1
         env:
@@ -330,7 +333,7 @@ jobs:
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ./release-artifacts/inframind_cli-${{ needs.analyze-version.outputs.new_version }}-py3-none-any.whl
-          asset_name: inframind_cli-${{ needs.analyze-version.outputs.new_version }}-py3-none-any.whl
+          asset_name: inframind-cli-${{ needs.analyze-version.outputs.new_version }}-py3-none-any.whl
           asset_content_type: application/zip
 
       - name: Upload CLI Tarball
@@ -339,7 +342,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./release-artifacts/inframind-cli-${{ needs.analyze-version.outputs.new_version }}.tar.gz
+          asset_path: ./release-artifacts/inframind_cli-${{ needs.analyze-version.outputs.new_version }}.tar.gz
           asset_name: inframind-cli-${{ needs.analyze-version.outputs.new_version }}.tar.gz
           asset_content_type: application/gzip
 
