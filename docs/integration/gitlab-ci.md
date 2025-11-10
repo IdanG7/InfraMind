@@ -49,7 +49,7 @@ optimize:
   stage: optimize
   image: python:3.11-slim
   script:
-    - pip install inframind-cli
+    - pip install InfraMind
     - inframind optimize --repo ${CI_PROJECT_PATH} --branch ${CI_COMMIT_BRANCH} --format shell > build.env
   artifacts:
     reports:
@@ -74,7 +74,7 @@ report:
   dependencies:
     - optimize
   script:
-    - pip install inframind-cli
+    - pip install InfraMind
     - |
       STATUS=$([ "$CI_JOB_STATUS" == "success" ] && echo "success" || echo "failure")
       inframind report \
@@ -114,7 +114,7 @@ setup:
   stage: setup
   image: python:3.11-slim
   script:
-    - pip install inframind-cli
+    - pip install InfraMind
   cache:
     key: pip-cache
     paths:
@@ -124,7 +124,7 @@ optimize:
   stage: optimize
   image: python:3.11-slim
   script:
-    - pip install inframind-cli
+    - pip install InfraMind
     - |
       inframind optimize \
         --repo ${CI_PROJECT_PATH} \
@@ -177,7 +177,7 @@ report:
   dependencies:
     - optimize
   script:
-    - pip install inframind-cli
+    - pip install InfraMind
     - |
       STATUS=$([ "$CI_JOB_STATUS" == "success" ] && echo "success" || echo "failure")
       inframind report \
@@ -207,7 +207,7 @@ optimize:
   stage: optimize
   image: python:3.11-slim
   script:
-    - pip install inframind-cli
+    - pip install InfraMind
     - inframind optimize --repo ${CI_PROJECT_PATH} --branch ${CI_COMMIT_BRANCH} --format shell > build.env
   artifacts:
     reports:
@@ -238,7 +238,7 @@ report:
   dependencies:
     - optimize
   script:
-    - pip install inframind-cli
+    - pip install InfraMind
     - |
       STATUS=$([ "$CI_JOB_STATUS" == "success" ] && echo "success" || echo "failure")
       inframind report \
@@ -261,7 +261,7 @@ stages:
 .inframind_optimize:
   image: python:3.11-slim
   before_script:
-    - pip install inframind-cli
+    - pip install InfraMind
   script:
     - |
       inframind optimize \
@@ -278,7 +278,7 @@ stages:
   image: python:3.11-slim
   when: always
   before_script:
-    - pip install inframind-cli
+    - pip install InfraMind
   script:
     - |
       STATUS=$([ "$CI_JOB_STATUS" == "success" ] && echo "success" || echo "failure")
@@ -346,7 +346,7 @@ optimize:
   stage: optimize
   image: python:3.11-slim
   script:
-    - pip install inframind-cli
+    - pip install InfraMind
     - inframind optimize --repo ${CI_PROJECT_PATH} --branch ${CI_COMMIT_BRANCH} --format shell > build.env
   artifacts:
     reports:
@@ -396,7 +396,7 @@ report:
   dependencies:
     - optimize
   script:
-    - pip install inframind-cli
+    - pip install InfraMind
     - |
       STATUS=$([ "$CI_JOB_STATUS" == "success" ] && echo "success" || echo "failure")
       inframind report \
@@ -418,7 +418,7 @@ Create a reusable template in `.gitlab/ci/inframind.yml`:
 .inframind:optimize:
   image: python:3.11-slim
   before_script:
-    - pip install inframind-cli
+    - pip install InfraMind
   script:
     - |
       inframind optimize \
@@ -435,7 +435,7 @@ Create a reusable template in `.gitlab/ci/inframind.yml`:
   image: python:3.11-slim
   when: always
   before_script:
-    - pip install inframind-cli
+    - pip install InfraMind
   script:
     - |
       STATUS=$([ "$CI_JOB_STATUS" == "success" ] && echo "success" || echo "failure")
@@ -578,7 +578,7 @@ test:cli:
   stage: .pre
   image: python:3.11-slim
   script:
-    - pip install inframind-cli
+    - pip install InfraMind
     - inframind --help
     - inframind health
 ```

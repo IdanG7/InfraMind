@@ -32,7 +32,7 @@ Add this to your pipeline to install the CLI:
 ```groovy
 stage('Setup') {
   steps {
-    sh 'pip install inframind-cli'
+    sh 'pip install InfraMind'
   }
 }
 ```
@@ -51,7 +51,7 @@ pipeline {
   stages {
     stage('Setup') {
       steps {
-        sh 'pip install inframind-cli'
+        sh 'pip install InfraMind'
       }
     }
 
@@ -295,7 +295,7 @@ pipeline {
     stage('Setup') {
       steps {
         container('builder') {
-          sh 'pip install inframind-cli'
+          sh 'pip install InfraMind'
         }
       }
     }
@@ -495,7 +495,7 @@ stage('Build') {
 
 ## Best Practices
 
-1. **Cache the CLI**: Install `inframind-cli` once and cache it
+1. **Cache the CLI**: Install `InfraMind` once and cache it
 2. **Error Handling**: Add fallback values if API is unavailable
 3. **Timeouts**: Set reasonable timeouts for API calls
 4. **Logging**: Log optimization suggestions for debugging

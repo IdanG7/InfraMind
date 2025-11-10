@@ -150,7 +150,7 @@ build:
 
 ```bash
 # Install CLI tool
-pip install inframind-cli
+pip install InfraMind
 
 # Get optimization suggestions
 inframind optimize --repo myorg/myrepo --branch main
@@ -298,7 +298,7 @@ See [docs/deployment/](docs/deployment/) for detailed deployment guides.
 - [x] Jenkins integration
 - [x] C++ telemetry agent
 - [x] Grafana dashboards
-- [ ] CLI tool (`inframind-cli`)
+- [ ] CLI tool (`InfraMind`)
 - [ ] GitHub Actions native integration
 - [ ] GitLab CI native integration
 - [ ] Web UI for configuration

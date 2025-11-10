@@ -15,19 +15,19 @@ else:
     version = "0.1.0"
 
 setup(
-    name="inframind-cli",
+    name="InfraMind",
     version=version,
     author="InfraMind Team",
     author_email="hello@inframind.dev",
     description="CLI tool for InfraMind CI/CD optimization engine",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/yourorg/inframind",
+    url="https://github.com/IdanG7/InfraMind",
     project_urls={
-        "Bug Tracker": "https://github.com/yourorg/inframind/issues",
-        "Documentation": "https://github.com/yourorg/inframind/blob/main/docs/",
-        "Source Code": "https://github.com/yourorg/inframind",
-        "Changelog": "https://github.com/yourorg/inframind/releases",
+        "Bug Tracker": "https://github.com/IdanG7/InfraMind/issues",
+        "Documentation": "https://github.com/IdanG7/InfraMind/blob/main/docs/",
+        "Source Code": "https://github.com/IdanG7/InfraMind",
+        "Changelog": "https://github.com/IdanG7/InfraMind/releases",
     },
     py_modules=["inframind"],
     classifiers=[

@@ -109,8 +109,8 @@ When a release is triggered, the following artifacts are created:
 
 Contains:
 - 📝 Changelog (auto-generated from commits)
-- 📦 CLI wheel file (`inframind_cli-X.Y.Z-py3-none-any.whl`)
-- 📦 CLI tarball (`inframind-cli-X.Y.Z.tar.gz`)
+- 📦 CLI wheel file (`InfraMind-X.Y.Z-py3-none-any.whl`)
+- 📦 CLI tarball (`InfraMind-X.Y.Z.tar.gz`)
 - 🔗 Links to Docker images
 - 📚 Installation instructions
 
@@ -121,10 +121,10 @@ Example: https://github.com/yourorg/inframind/releases/tag/v0.2.0
 The CLI tool is published to PyPI:
 
 ```bash
-pip install inframind-cli==X.Y.Z
+pip install InfraMind==X.Y.Z
 ```
 
-View at: https://pypi.org/project/inframind-cli/
+View at: https://pypi.org/project/InfraMind/
 
 ### 3. **Docker Images**
 

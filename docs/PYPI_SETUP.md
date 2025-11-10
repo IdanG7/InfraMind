@@ -29,7 +29,7 @@ Trusted Publishing is more secure and doesn't require managing API tokens.
    - Go to https://pypi.org/manage/account/publishing/
    - Click "Add a new publisher"
    - Fill in:
-     - **PyPI Project Name**: `inframind-cli`
+     - **PyPI Project Name**: `InfraMind`
      - **Owner**: `IdanG7` (your GitHub username)
      - **Repository name**: `InfraMind`
      - **Workflow name**: `release.yml`
@@ -46,7 +46,7 @@ If you prefer using an API token:
 
 1. **Generate PyPI API Token**
    - Go to https://pypi.org/manage/account/token/
-   - Create token with scope: "Entire account" or "Project: inframind-cli"
+   - Create token with scope: "Entire account" or "Project: InfraMind"
    - Copy the token (starts with `pypi-`)
 
 2. **Add Secret to GitHub**
@@ -89,7 +89,7 @@ Your releases work fine without PyPI - users can install from GitHub releases:
 
 ```bash
 # Install from GitHub release
-pip install https://github.com/IdanG7/infraread/releases/download/v0.1.1/inframind_cli-0.1.1-py3-none-any.whl
+pip install https://github.com/IdanG7/infraread/releases/download/v0.1.1/InfraMind-0.1.1-py3-none-any.whl
 ```
 
 ## Resources

@@ -6,7 +6,7 @@ Command-line tool for easy integration with InfraMind CI/CD optimization engine.
 
 ```bash
 # Install from PyPI (once published)
-pip install inframind-cli
+pip install InfraMind
 
 # Or install from source
 cd cli
@@ -141,7 +141,7 @@ pipeline {
     stage('Optimize') {
       steps {
         script {
-          sh 'pip install inframind-cli'
+          sh 'pip install InfraMind'
           env.OPTS = sh(
             script: "inframind optimize --repo ${env.GIT_URL} --branch ${env.BRANCH_NAME} --format shell",
             returnStdout: true
@@ -177,7 +177,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install InfraMind CLI
-        run: pip install inframind-cli
+        run: pip install InfraMind
 
       - name: Get Optimization Suggestions
         id: optimize
@@ -206,7 +206,7 @@ jobs:
 build:
   stage: build
   before_script:
-    - pip install inframind-cli
+    - pip install InfraMind
     - inframind optimize --repo ${CI_PROJECT_PATH} --branch ${CI_COMMIT_BRANCH} --format env > opts.env
     - source opts.env
   script:

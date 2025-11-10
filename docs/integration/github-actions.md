@@ -49,7 +49,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install InfraMind CLI
-        run: pip install inframind-cli
+        run: pip install InfraMind
 
       - name: Get Optimization Suggestions
         id: optimize
@@ -114,7 +114,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake ninja-build ccache
-          pip install inframind-cli
+          pip install InfraMind
 
       - name: Setup ccache
         uses: actions/cache@v4
@@ -182,7 +182,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Install InfraMind CLI
-        run: pip install inframind-cli
+        run: pip install InfraMind
 
       - name: Get Build Optimization
         id: optimize
@@ -243,7 +243,7 @@ jobs:
           cache: 'npm'
 
       - name: Install InfraMind CLI
-        run: pip install inframind-cli
+        run: pip install InfraMind
 
       - name: Get Optimization
         id: optimize
@@ -300,7 +300,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install InfraMind CLI
-        run: pip install inframind-cli
+        run: pip install InfraMind
 
       - name: Get Optimization
         id: optimize
@@ -371,7 +371,7 @@ jobs:
 
     steps:
       - name: Install CLI
-        run: pip install inframind-cli
+        run: pip install InfraMind
 
       - name: Get Suggestions
         id: opt
@@ -425,7 +425,7 @@ jobs:
     cache: 'pip'
 
 - name: Install InfraMind CLI
-  run: pip install inframind-cli
+  run: pip install InfraMind
 ```
 
 ### 2. Handle API Failures Gracefully

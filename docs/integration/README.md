@@ -144,7 +144,7 @@ The InfraMind CLI tool provides the easiest integration:
 ### Installation
 
 ```bash
-pip install inframind-cli
+pip install InfraMind
 ```
 
 ### Usage
