@@ -210,7 +210,7 @@ def test_multiple_runs_same_pipeline(client, db_session):
     features = (
         db_session.query(Feature)
         .join(Run)
-        .filter(Run.pipeline == "multi-run/pipeline")
+        .filter(Run.pipeline_id == pipeline.id)
         .all()
     )
     assert len(features) == 3
