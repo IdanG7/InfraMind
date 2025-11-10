@@ -31,7 +31,7 @@ Trusted Publishing is more secure and doesn't require managing API tokens.
    - Fill in:
      - **PyPI Project Name**: `inframind-cli`
      - **Owner**: `IdanG7` (your GitHub username)
-     - **Repository name**: `infraread`
+     - **Repository name**: `InfraMind`
      - **Workflow name**: `release.yml`
      - **Environment name**: `pypi`
    - Click "Add"
