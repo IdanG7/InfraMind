@@ -352,6 +352,7 @@ jobs:
     needs: [analyze-version, create-release]
     if: needs.analyze-version.outputs.should_release == 'true'
     runs-on: ubuntu-latest
+    continue-on-error: true  # Don't fail workflow if PyPI publishing isn't configured yet
     environment:
       name: pypi
       url: https://pypi.org/p/inframind-cli
@@ -409,15 +410,24 @@ jobs:
   notify:
     name: Notify Release
     needs: [analyze-version, create-release, publish-pypi]
-    if: needs.analyze-version.outputs.should_release == 'true'
+    if: |
+      always() &&
+      needs.analyze-version.outputs.should_release == 'true' &&
+      needs.create-release.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - name: Notify success
         run: |
           echo "🎉 Successfully released v${{ needs.analyze-version.outputs.new_version }}"
-          echo "- GitHub Release: https://github.com/${{ github.repository }}/releases/tag/v${{ needs.analyze-version.outputs.new_version }}"
-          echo "- PyPI: https://pypi.org/project/inframind-cli/${{ needs.analyze-version.outputs.new_version }}/"
-          echo "- Docker: ghcr.io/${{ github.repository }}/api:v${{ needs.analyze-version.outputs.new_version }}"
+          echo ""
+          echo "✅ GitHub Release: https://github.com/${{ github.repository }}/releases/tag/v${{ needs.analyze-version.outputs.new_version }}"
+          echo "🐳 Docker Images: ghcr.io/${{ github.repository }}/api:v${{ needs.analyze-version.outputs.new_version }}"
+
+          if [ "${{ needs.publish-pypi.result }}" == "success" ]; then
+            echo "📦 PyPI: https://pypi.org/project/inframind-cli/${{ needs.analyze-version.outputs.new_version }}/"
+          else
+            echo "⚠️ PyPI: Not published (configure PyPI Trusted Publishing or add PYPI_API_TOKEN secret)"
+          fi
 
       # Add Slack/Discord notification here if needed
       # - name: Notify Slack
